@@ -6,9 +6,6 @@
  */
 export class PulsarNostrServer {
   // TODO: implement Nostr relay signaling
-  async accept(): Promise<never> {
-    throw new Error("Nostr mode not yet implemented");
-  }
 
   close() {
     // no-op

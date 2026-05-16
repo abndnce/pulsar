@@ -101,8 +101,6 @@ The server binds a single UDP port and demultiplexes incoming connections by cli
 
 The server blindly accepts the client's fingerprint (DTLS certificate verification is disabled), since client authenticity is established later.
 
-`accept()` can be called in a loop — each call resolves when the next new client connects.
-
 </details>
 
 ## Pulsar servers
