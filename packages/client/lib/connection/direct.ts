@@ -37,7 +37,6 @@ export async function connectDirect(
 
   // ---- Craft the remote (server) SDP ----
   //
-  // Per the spec:
   //   v=0
   //   o=- 111 222 IN IP4 0.0.0.0
   //   s=-
@@ -50,7 +49,10 @@ export async function connectDirect(
   //   a=fingerprint:sha-256 F1:85:10:8F:36:FF:58:D8:D0:4B:52:D7:ED:DC:5C:28:AE:7D:DB:54:0E:2A:DD:C7:C3:94:EA:A1:27:D0:4E:78
   //   a=setup:active
   //   a=sctp-port:5000
-  //   a=candidate:1 1 UDP [priority] [IP] [PORT] typ host
+  //
+  // Note: candidates can't be inlined in the SDP — Chrome's SDP parser
+  // rejects them. Instead we add the server candidate via Trickle ICE
+  // after setting the remote description.
   const remoteSdp = [
     "v=0",
     "o=- 111 222 IN IP4 0.0.0.0",
@@ -64,10 +66,16 @@ export async function connectDirect(
     `a=fingerprint:sha-256 ${PULSAR_FINGERPRINT}`,
     "a=setup:active",
     "a=sctp-port:5000",
-    `a=candidate:1 1 UDP 2130706431 ${host} ${port} typ host`,
   ].join("\r\n");
 
   await pc.setRemoteDescription({ type: "answer", sdp: remoteSdp });
+
+  // Provide the server's ICE candidate via Trickle ICE
+  await pc.addIceCandidate({
+    candidate: `candidate:1 1 UDP 2130706431 ${host} ${port} typ host`,
+    sdpMid: "0",
+    sdpMLineIndex: 0,
+  });
 
   // Wait for the ICE + DTLS + SCTP connection to be established
   await new Promise<void>((resolve, reject) => {

@@ -55,7 +55,7 @@ The browser connects without any signalling channel. Since the server doesn't va
 
 1. Create an `RTCPeerConnection`
 2. Set the offer from `createOffer()` as the local description
-3. Craft a remote description (the server's SDP):
+3. Craft a remote description (the server's SDP) — candidates can't be inlined (Chrome's SDP parser rejects them), so they're added via Trickle ICE after:
 
 ```
 v=0
@@ -70,10 +70,9 @@ a=ice-pwd:pulsarpulsarpulsarpuls
 a=fingerprint:sha-256 F1:85:10:8F:36:FF:58:D8:D0:4B:52:D7:ED:DC:5C:28:AE:7D:DB:54:0E:2A:DD:C7:C3:94:EA:A1:27:D0:4E:78
 a=setup:active
 a=sctp-port:5000
-a=candidate:1 1 UDP 2130706431 [REPLACE WITH TARGET IP] [REPLACE WITH TARGET PORT] typ host
 ```
 
-The `a=candidate:` line is required for the ICE implementation to recognize the remote candidate.
+4. Add the server's ICE candidate via `addIceCandidate()` with `sdpMid: "0"`.
 
 ## DTLS role
 
