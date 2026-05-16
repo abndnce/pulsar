@@ -37,45 +37,37 @@ export async function connectDirect(
 
   // ---- Craft the remote (server) SDP ----
   //
-  // Matches the structure werift generates for data channel answers.
-  //
   //   v=0
   //   o=- 111 222 IN IP4 0.0.0.0
   //   s=-
   //   t=0 0
-  //   a=group:BUNDLE 0
-  //   a=extmap-allow-mixed
-  //   a=msid-semantic:WMS *
   //   m=application [PORT] UDP/DTLS/SCTP webrtc-datachannel
   //   c=IN IP4 [IP]
   //   a=ice-ufrag:pulsar
   //   a=ice-pwd:pulsarpulsarpulsarpuls
-  //   a=ice-options:trickle
   //   a=fingerprint:sha-256 F1:85:10:8F:36:FF:58:D8:D0:4B:52:D7:ED:DC:5C:28:AE:7D:DB:54:0E:2A:DD:C7:C3:94:EA:A1:27:D0:4E:78
   //   a=setup:active
   //   a=mid:0
   //   a=sctp-port:5000
   //
-  // Note: Chrome's SDP parser rejects `a=max-message-size` in a remote
-  // description, and candidates can't be inlined either — they're added
-  // via Trickle ICE after setting the remote description.
+  // Note: the trailing empty string ensures a final \r\n so that
+  // Chrome's GetLine (webrtc_sdp.cc) finds a '\n' terminator for the
+  // last line. Candidates are added via Trickle ICE after setting the
+  // remote description.
   const remoteSdp = [
     "v=0",
     "o=- 111 222 IN IP4 0.0.0.0",
     "s=-",
     "t=0 0",
-    "a=group:BUNDLE 0",
-    "a=extmap-allow-mixed",
-    "a=msid-semantic:WMS *",
     `m=application ${port} UDP/DTLS/SCTP webrtc-datachannel`,
     `c=IN IP4 ${host}`,
     `a=ice-ufrag:${PULSAR_UFRAG}`,
     `a=ice-pwd:${PULSAR_PWD}`,
-    "a=ice-options:trickle",
     `a=fingerprint:sha-256 ${PULSAR_FINGERPRINT}`,
     "a=setup:active",
     "a=mid:0",
     "a=sctp-port:5000",
+    "",
   ].join("\r\n");
 
   await pc.setRemoteDescription({ type: "answer", sdp: remoteSdp });
