@@ -74,7 +74,6 @@ a=fingerprint:sha-256 F1:85:10:8F:36:FF:58:D8:D0:4B:52:D7:ED:DC:5C:28:AE:7D:DB:5
 a=setup:active
 a=mid:0
 a=sctp-port:5000
-a=max-message-size:65536
 ```
 
 4. Add the server's ICE candidate via `addIceCandidate()` with `sdpMid: "0"`.

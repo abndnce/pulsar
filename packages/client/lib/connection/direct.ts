@@ -55,11 +55,10 @@ export async function connectDirect(
   //   a=setup:active
   //   a=mid:0
   //   a=sctp-port:5000
-  //   a=max-message-size:65536
   //
-  // Note: candidates can't be inlined in the SDP — Chrome's SDP parser
-  // rejects them. Instead we add the server candidate via Trickle ICE
-  // after setting the remote description.
+  // Note: Chrome's SDP parser rejects `a=max-message-size` in a remote
+  // description, and candidates can't be inlined either — they're added
+  // via Trickle ICE after setting the remote description.
   const remoteSdp = [
     "v=0",
     "o=- 111 222 IN IP4 0.0.0.0",
@@ -77,7 +76,6 @@ export async function connectDirect(
     "a=setup:active",
     "a=mid:0",
     "a=sctp-port:5000",
-    "a=max-message-size:65536",
   ].join("\r\n");
 
   await pc.setRemoteDescription({ type: "answer", sdp: remoteSdp });
