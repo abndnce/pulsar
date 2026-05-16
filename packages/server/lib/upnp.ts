@@ -44,8 +44,12 @@ export async function openPort(
 
   let loc = "";
   for (let i = 0; i < 10; i++) {
-    const [data] = await sock.receive();
-    const msg = new TextDecoder().decode(data);
+    const result = await Promise.race([
+      sock.receive().then(([data]) => data),
+      new Promise<null>((r) => setTimeout(() => r(null), 2000)),
+    ]);
+    if (!result) break; // no more responses within timeout
+    const msg = new TextDecoder().decode(result);
     if (msg.includes("InternetGatewayDevice")) {
       loc = msg.match(/location: (.*)/i)?.[1] || "";
       if (loc) break;
