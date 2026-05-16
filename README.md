@@ -55,21 +55,26 @@ The browser connects without any signalling channel. Since the server doesn't va
 
 1. Create an `RTCPeerConnection`
 2. Set the offer from `createOffer()` as the local description
-3. Craft a remote description (the server's SDP) — candidates can't be inlined (Chrome's SDP parser rejects them), so they're added via Trickle ICE after:
+3. Craft a remote description (the server's SDP) matching the structure werift generates — candidates can't be inlined (Chrome's SDP parser rejects them), so they're added via Trickle ICE after:
 
 ```
 v=0
 o=- 111 222 IN IP4 0.0.0.0
 s=-
 t=0 0
+a=group:BUNDLE 0
+a=extmap-allow-mixed
+a=msid-semantic:WMS *
 m=application [REPLACE WITH TARGET PORT] UDP/DTLS/SCTP webrtc-datachannel
 c=IN IP4 [REPLACE WITH TARGET IP]
-a=mid:0
 a=ice-ufrag:pulsar
 a=ice-pwd:pulsarpulsarpulsarpuls
+a=ice-options:trickle
 a=fingerprint:sha-256 F1:85:10:8F:36:FF:58:D8:D0:4B:52:D7:ED:DC:5C:28:AE:7D:DB:54:0E:2A:DD:C7:C3:94:EA:A1:27:D0:4E:78
 a=setup:active
+a=mid:0
 a=sctp-port:5000
+a=max-message-size:65536
 ```
 
 4. Add the server's ICE candidate via `addIceCandidate()` with `sdpMid: "0"`.
