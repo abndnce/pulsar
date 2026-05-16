@@ -71,10 +71,9 @@ a=fingerprint:sha-256 F1:85:10:8F:36:FF:58:D8:D0:4B:52:D7:ED:DC:5C:28:AE:7D:DB:5
 a=setup:active
 a=sctp-port:5000
 a=candidate:1 1 UDP 2130706431 [REPLACE WITH TARGET IP] [REPLACE WITH TARGET PORT] typ host
-a=end-of-candidates
 ```
 
-The `a=candidate:` and `a=end-of-candidates` lines are required for the ICE implementation to recognize the remote candidate.
+The `a=candidate:` line is required for the ICE implementation to recognize the remote candidate.
 
 ## DTLS role
 
