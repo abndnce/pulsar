@@ -1,0 +1,6 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "@types/node": "npm:@types/node@^25.8.0"
+  }
+}

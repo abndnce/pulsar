@@ -1,0 +1,5 @@
+{
+  "name": "pulsar",
+  "private": true,
+  "type": "module"
+}
