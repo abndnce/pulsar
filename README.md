@@ -49,13 +49,13 @@ sha-256 F1:85:10:8F:36:FF:58:D8:D0:4B:52:D7:ED:DC:5C:28:AE:7D:DB:54:0E:2A:DD:C7:
 
 On the server (using werift), the `signatureHash` must be passed as an object `{ hash: 4, signature: 3 }` (sha256 + ecdsa), not as the string `"sha-256"`. The browser client ignores this — its DTLS certificate is auto-generated.
 
-## SDP munging
+## Connecting directly (browser client)
 
-When connecting directly, the browser client has to:
-1. Create an `RTCPeerConnection` and call `createOffer()`
-2. Replace the random `ice-ufrag`, `ice-pwd`, and `fingerprint` in the offer SDP with Pulsar's fixed values
-3. Set the munged SDP as the local description
-4. Set a remote description (the server's SDP):
+The browser connects without any signalling channel. Since the server doesn't validate the client's ICE credentials or DTLS fingerprint (STUN MESSAGE-INTEGRITY is unchecked, DTLS certificate verification is disabled), the client can keep its browser-generated credentials for the local SDP. It only needs to craft a remote description SDP describing the server:
+
+1. Create an `RTCPeerConnection`
+2. Set the offer from `createOffer()` as the local description
+3. Craft a remote description (the server's SDP):
 
 ```
 v=0

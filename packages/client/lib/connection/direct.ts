@@ -27,23 +27,13 @@ export async function connectDirect(
     ordered: true,
   });
 
-  // Generate an offer, then munge the SDP to replace the random
-  // ICE credentials and DTLS fingerprint with Pulsar's fixed values.
+  // Generate an offer and set it as the local description.
+  // We do NOT munge the SDP — the server doesn't validate the client's
+  // ICE credentials or DTLS fingerprint (STUN MESSAGE-INTEGRITY is
+  // unchecked, DTLS cert verification is disabled). The browser's
+  // self-generated credentials work fine for the local side.
   const offer = await pc.createOffer();
-
-  const mungedSdp = offer.sdp!
-    .replace(/^a=ice-ufrag:.*$/m, `a=ice-ufrag:${PULSAR_UFRAG}`)
-    .replace(/^a=ice-pwd:.*$/m, `a=ice-pwd:${PULSAR_PWD}`)
-    .replace(
-      /^a=fingerprint:.*$/m,
-      `a=fingerprint:sha-256 ${PULSAR_FINGERPRINT}`,
-    );
-
-  if (mungedSdp === offer.sdp) {
-    throw new Error("SDP munging failed – could not replace ICE credentials");
-  }
-
-  await pc.setLocalDescription({ type: "offer", sdp: mungedSdp });
+  await pc.setLocalDescription(offer);
 
   // ---- Craft the remote (server) SDP ----
   //
