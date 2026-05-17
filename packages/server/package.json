@@ -1,6 +1,6 @@
 {
   "name": "@abndnce/pulsar-server",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "description": "Pulsar tunnel server — WebRTC Direct + Nostr signaling",
   "bin": "bin.js",

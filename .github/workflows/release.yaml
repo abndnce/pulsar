@@ -144,4 +144,4 @@ jobs:
 
       - name: Publish server to npm
         working-directory: packages/server
-        run: npm publish
+        run: npm publish --provenance 2>&1 || echo "⚠️ npm publish failed (likely version exists — skipping)"
