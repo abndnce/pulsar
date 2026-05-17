@@ -10,6 +10,9 @@
   "scripts": {
     "start": "deno run -A --unstable-net main.ts"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "cachedir": "^2.4.0"
   }

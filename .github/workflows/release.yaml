@@ -49,6 +49,30 @@ jobs:
         working-directory: packages/relay
         run: pnpm build
 
+      # ── Deploy relay to abndnce/relay ───────────────────────────
+
+      - name: Checkout relay repo
+        uses: actions/checkout@v4
+        with:
+          repository: abndnce/relay
+          token: ${{ secrets.RELAY_PAT }}
+          path: relay-repo
+
+      - name: Push relay build
+        working-directory: relay-repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf ./*
+          cp -r ../packages/relay/dist/* ./
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No relay build changes"
+            exit 0
+          fi
+          git commit -m "Update relay for ${GITHUB_SHA}"
+          git push
+
       # ── Compile Pulsar server (Deno) ────────────────────────────
 
       - name: Compile server (linux-arm64)
@@ -111,3 +135,13 @@ jobs:
             pulsar-server-mac-arm64 \
             pulsar-server-mac-x64 \
             pulsar-server-windows-x64.exe
+
+      # ── Publish to npm ──────────────────────────────────────────
+
+      - name: Set up npm auth
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
+      - name: Publish server to npm
+        working-directory: packages/server
+        run: npm publish
