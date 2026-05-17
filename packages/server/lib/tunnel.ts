@@ -81,14 +81,11 @@ function handleSocketChannel(
   const pendingWrites: Uint8Array[] = [];
   let writeChain = Promise.resolve();
 
-  const logDebug = (msg: string) =>
-    console.log(`[Tunnel] ${hostname}:${port} — ${msg}`);
   const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
   const closeSocket = () => {
     if (closed) return;
     closed = true;
-    logDebug("Closing TCP socket");
     try {
       socket?.close();
     } catch {
@@ -98,7 +95,6 @@ function handleSocketChannel(
 
   const closeChannel = () => {
     if (channel.readyState === "open" || channel.readyState === "connecting") {
-      logDebug("Closing data channel");
       try {
         channel.close();
       } catch {
@@ -110,13 +106,9 @@ function handleSocketChannel(
   /** Queue a chunk for writing, or write immediately if TCP is connected. */
   const queueWrite = (chunk: Uint8Array) => {
     if (!socket) {
-      logDebug(
-        `Buffering ${chunk.byteLength} bytes (TCP not yet connected)`,
-      );
       pendingWrites.push(chunk);
       return;
     }
-    logDebug(`Writing ${chunk.byteLength} bytes to TCP socket`);
     writeChain = writeChain
       .then(async () => {
         if (!closed && socket) await writeAll(socket, chunk);
@@ -133,7 +125,6 @@ function handleSocketChannel(
   // ── Data channel events ──
 
   channel.onmessage = (event) => {
-    logDebug("Received message from data channel");
     try {
       const data = event.data;
       const bytes =
@@ -154,39 +145,25 @@ function handleSocketChannel(
     }
   };
 
-  channel.onclose = () => {
-    logDebug("Data channel closed by remote peer");
-    closeSocket();
-  };
-  channel.onerror = () => {
-    logDebug("Data channel error from remote peer");
-    closeSocket();
-  };
+  channel.onclose = () => closeSocket();
+  channel.onerror = () => closeSocket();
 
   // ── TCP connection ──
 
-  logDebug("Initiating TCP connection");
   void (async () => {
     try {
       socket = await Deno.connect({ hostname, port, transport: "tcp" });
       trackSocket?.(socket);
-      logDebug("TCP socket connected");
 
       // Flush any data queued while TCP was connecting
-      const flushed = pendingWrites.length;
       for (const chunk of pendingWrites.splice(0)) queueWrite(chunk);
-      if (flushed > 0) logDebug(`Flushed ${flushed} buffered writes`);
 
       // Read loop: TCP → data channel
       const buf = new Uint8Array(16 * 1024);
       while (!closed) {
         const read = await socket.read(buf);
-        if (read === null) {
-          logDebug("TCP socket closed by remote end");
-          break;
-        }
+        if (read === null) break;
         if (read > 0 && channel.readyState === "open") {
-          logDebug(`Sending ${read} bytes to data channel`);
           channel.send(Buffer.from(buf.subarray(0, read)));
         }
       }
@@ -219,10 +196,6 @@ function handleDataChannel(
 ): void {
   // Ensure binary type for ArrayBuffer messages from the browser
   if ("binaryType" in channel) (channel as any).binaryType = "arraybuffer";
-
-  console.log(
-    `[Tunnel] Incoming data channel: label="${channel.label}", id=${channel.id}, state=${channel.readyState}`,
-  );
 
   if (channel.label === KEEPALIVE_LABEL) {
     console.log("[Tunnel] Ignoring duplicate keepalive channel");
@@ -269,33 +242,22 @@ export interface TunnelWireTarget {
 export function wireTunnel(target: TunnelWireTarget): void {
   const { sctpTransport, dtlsTransport } = target;
 
-  console.log("[Tunnel] Wiring tunnel bridge for new connection");
-
   // ── Wire incoming data channels → TCP bridge ──
 
   const onDataChannel = sctpTransport.onDataChannel;
 
   if (onDataChannel && typeof onDataChannel.subscribe === "function") {
-    console.log("[Tunnel] Subscribing to incoming data channels via onDataChannel");
-    const handler = (channel: RTCDataChannel) => {
-      console.log(
-        `[Tunnel] Data channel received: label="${channel.label}", id=${channel.id}`,
-      );
+    onDataChannel.subscribe((channel) =>
       handleDataChannel(channel, (s) => target.trackSocket(s), (err) => {
         console.error(`[Tunnel] Channel error: ${err.message}`);
-      });
-    };
-    onDataChannel.subscribe(handler);
-  } else {
-    console.warn("[Tunnel] No onDataChannel event source available on SCTP transport");
+      }),
+    );
   }
 
   // ── Auto-cleanup on DTLS disconnect ──
 
   dtlsTransport.onStateChange?.subscribe?.((state: string) => {
-    console.log(`[Tunnel] DTLS state changed: ${state}`);
     if (["failed", "closed"].includes(state)) {
-      console.log("[Tunnel] DTLS disconnected, cleaning up tunnel");
       target.close().catch(() => {});
     }
   });
