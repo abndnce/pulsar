@@ -1,69 +1,150 @@
 import { SOCKET_PREFIX } from "../../core/constants.ts";
+import { waitForDataChannelOpen } from "./socket-channel.ts";
 
 // ── WebSocket-like adapter for libcurl.js ──────────────────────────
 
 /**
- * A minimal WebSocket-like wrapper around an RTCDataChannel.
+ * WebSocket-compatible wrapper around an RTCDataChannel.
  *
- * libcurl.js expects its transport factory to return objects
- * with `send()`, `close()`, `onopen`, `onmessage`, `onclose`,
- * and `onerror` — which is exactly the RTCDataChannel API, so
- * the wrapper is thin.
+ * libcurl.js compares `readyState` against `WebSocket.OPEN` (numeric 1)
+ * and expects static constants (`CONNECTING`, `OPEN`, `CLOSING`, `CLOSED`).
+ * Using `EventTarget` ensures `addEventListener` / `removeEventListener`
+ * work, which libcurl's poll loop depends on.
  */
-class DataChannelSocket {
-  private _channel: RTCDataChannel;
+class DataChannelSocket extends EventTarget {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+
+  readonly CONNECTING = 0;
+  readonly OPEN = 1;
+  readonly CLOSING = 2;
+  readonly CLOSED = 3;
+
+  readonly url: string;
+  readonly protocol = "";
+  readonly extensions = "";
+
+  binaryType: string = "arraybuffer";
+
+  onopen: ((event: Event) => void) | null = null;
+  onclose: ((event: CloseEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+
+  private _channel: RTCDataChannel | null = null;
   private _closed = false;
+  private _closeDispatched = false;
+  private _readyState: number = DataChannelSocket.CONNECTING;
 
-  onopen: (() => void) | null = null;
-  onmessage: ((event: { data: ArrayBuffer | string }) => void) | null = null;
-  onclose: (() => void) | null = null;
-  onerror: ((event: { error?: string }) => void) | null = null;
+  constructor(pc: RTCPeerConnection, destination: string) {
+    super();
+    this.url = `wss://pulsar-tunnel.local/${destination}`;
 
-  constructor(channel: RTCDataChannel) {
+    const channel = pc.createDataChannel(`${SOCKET_PREFIX}${destination}`, {
+      ordered: true,
+    });
+    channel.binaryType = "arraybuffer";
     this._channel = channel;
 
-    channel.onopen = () => {
-      if (!this._closed) this.onopen?.();
-    };
+    void this._open(channel, pc);
+  }
+
+  private async _open(channel: RTCDataChannel, pc: RTCPeerConnection) {
+    try {
+      await waitForDataChannelOpen(channel, pc);
+    } catch (error) {
+      if (!this._closed) {
+        console.error(
+          `[DataChannelSocket] Failed to open channel: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        this._dispatchError();
+      }
+      this._dispatchClose();
+      return;
+    }
+
+    if (this._closed) {
+      channel.close();
+      this._dispatchClose();
+      return;
+    }
+
+    this._channel = channel;
+    this._readyState = DataChannelSocket.OPEN;
 
     channel.onmessage = (event) => {
-      if (!this._closed) this.onmessage?.({ data: event.data as ArrayBuffer | string });
+      this._dispatch(new MessageEvent("message", { data: event.data }));
     };
 
     channel.onclose = () => {
-      this._closed = true;
-      this.onclose?.();
+      this._readyState = DataChannelSocket.CLOSED;
+      this._dispatchClose();
     };
 
-    channel.onerror = (event) => {
-      this.onerror?.({ error: String(event) });
+    channel.onerror = () => {
+      this._dispatchError();
     };
+
+    this._dispatch(new Event("open"));
   }
 
-  get readyState(): string {
-    return this._channel.readyState;
+  get readyState(): number {
+    return this._readyState;
   }
 
-  get binaryType(): string {
-    return "arraybuffer";
+  get bufferedAmount(): number {
+    return this._channel?.bufferedAmount ?? 0;
   }
 
-  set binaryType(_: string) {
-    // RTCDataChannel.binaryType is already "arraybuffer" by default in browsers
-  }
+  send(data: string | ArrayBufferLike | ArrayBufferView): void {
+    if (this._readyState !== DataChannelSocket.OPEN || !this._channel) {
+      throw new Error("DataChannelSocket is not open");
+    }
 
-  send(data: ArrayBuffer | string | ArrayBufferView): void {
-    if (this._closed || this._channel.readyState !== "open") return;
-    (this._channel as any).send(data);
+    if (typeof data === "string") {
+      this._channel.send(data);
+    } else {
+      // RTCDataChannel accepts ArrayBuffer or ArrayBufferView
+      (this._channel as any).send(data);
+    }
   }
 
   close(): void {
+    if (this._closed) return;
     this._closed = true;
-    try {
+
+    if (this._channel && this._channel.readyState !== "closed") {
       this._channel.close();
-    } catch {
-      /* ignore */
+    } else {
+      this._dispatchClose();
     }
+  }
+
+  // ── Internal dispatch helpers ──
+
+  private _dispatch(event: Event): void {
+    const type = event.type;
+    const handlerName = `on${type}` as "onopen" | "onclose" | "onerror" | "onmessage";
+
+    const handler = this[handlerName];
+    if (handler) (handler as (event: Event) => void)(event);
+
+    this.dispatchEvent(event);
+  }
+
+  private _dispatchError(): void {
+    this._dispatch(new Event("error"));
+  }
+
+  private _dispatchClose(): void {
+    if (this._closeDispatched) return;
+    this._closeDispatched = true;
+    this._readyState = DataChannelSocket.CLOSED;
+    this._dispatch(new CloseEvent("close"));
   }
 }
 
@@ -112,17 +193,11 @@ export function libcurlTransport(
     // Validate the destination format (hostname:port)
     const sep = dest.lastIndexOf(":");
     if (sep === -1) {
-      throw new Error(`libcurl transport: invalid destination "${dest}" — expected "hostname:port"`);
+      throw new Error(
+        `libcurl transport: invalid destination "${dest}" — expected "hostname:port"`,
+      );
     }
 
-    // Open a data channel asynchronously, but return immediately.
-    // libcurl.js can handle the channel opening after the factory returns.
-    const channel = pc.createDataChannel(`${SOCKET_PREFIX}${dest}`, {
-      ordered: true,
-    });
-
-    return new DataChannelSocket(channel);
+    return new DataChannelSocket(pc, dest);
   };
 }
-
-
