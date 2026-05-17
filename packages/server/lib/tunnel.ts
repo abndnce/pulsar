@@ -1,49 +1,7 @@
-import { RTCDataChannel, RTCSctpTransport, RTCDtlsTransport } from "npm:werift";
+import { RTCDataChannel, RTCDtlsTransport, RTCSctpTransport } from "npm:werift";
 import { Buffer } from "node:buffer";
-import { SOCKET_PREFIX, KEEPALIVE_LABEL } from "../../core/constants.ts";
-
-// ── parseDestination ──────────────────────────────────────────────
-
-/**
- * Parse a data channel label into a TCP destination.
- *
- * Label format: `socket/<hostname>:<port>`
- *
- * Supports IPv4, IPv6 (`[::1]:port`), and hostname destinations.
- */
-function parseDestination(label: string): { hostname: string; port: number } {
-  if (!label.startsWith(SOCKET_PREFIX)) {
-    throw new Error(
-      `Unknown channel label "${label}" — expected prefix "${SOCKET_PREFIX}"`,
-    );
-  }
-  const dest = label.slice(SOCKET_PREFIX.length);
-  if (!dest) throw new Error(`Socket destination missing from "${label}"`);
-
-  // IPv6: [::1]:8080
-  if (dest.startsWith("[")) {
-    const cb = dest.indexOf("]");
-    if (cb === -1 || dest[cb + 1] !== ":") {
-      throw new Error(`Invalid IPv6 destination "${dest}"`);
-    }
-    const hostname = dest.slice(1, cb);
-    const port = Number(dest.slice(cb + 2));
-    if (!hostname || !Number.isInteger(port) || port < 1 || port > 65535) {
-      throw new Error(`Invalid IPv6 destination "${dest}"`);
-    }
-    return { hostname, port };
-  }
-
-  // IPv4 / hostname: hostname:port
-  const sep = dest.lastIndexOf(":");
-  if (sep === -1) throw new Error(`Invalid destination "${dest}" — missing port`);
-  const hostname = dest.slice(0, sep);
-  const port = Number(dest.slice(sep + 1));
-  if (!hostname || !Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error(`Invalid destination "${dest}"`);
-  }
-  return { hostname, port };
-}
+import { KEEPALIVE_LABEL } from "../../core/constants.ts";
+import { parseSocketDestination } from "../../core/socket.ts";
 
 // ── writeAll ──────────────────────────────────────────────────────
 
@@ -75,7 +33,7 @@ function handleSocketChannel(
   trackSocket?: (socket: Deno.Conn) => void,
   onError?: (err: Error) => void,
 ): void {
-  const { hostname, port } = parseDestination(channel.label);
+  const { hostname, port } = parseSocketDestination(channel.label);
   let socket: Deno.Conn | undefined;
   let closed = false;
   const pendingWrites: Uint8Array[] = [];
@@ -114,7 +72,9 @@ function handleSocketChannel(
         if (!closed && socket) await writeAll(socket, chunk);
       })
       .catch((e) => {
-        const msg = `[Tunnel] Write failed for ${hostname}:${port}: ${errMsg(e)}`;
+        const msg = `[Tunnel] Write failed for ${hostname}:${port}: ${
+          errMsg(e)
+        }`;
         console.error(msg);
         onError?.(new Error(msg));
         closeSocket();
@@ -127,17 +87,18 @@ function handleSocketChannel(
   channel.onmessage = (event) => {
     try {
       const data = event.data;
-      const bytes =
-        data instanceof ArrayBuffer
-          ? new Uint8Array(data)
-          : data instanceof Uint8Array
-            ? data
-            : typeof data === "string"
-              ? new TextEncoder().encode(data)
-              : new Uint8Array(data as ArrayBuffer);
+      const bytes = data instanceof ArrayBuffer
+        ? new Uint8Array(data)
+        : data instanceof Uint8Array
+        ? data
+        : typeof data === "string"
+        ? new TextEncoder().encode(data)
+        : new Uint8Array(data as ArrayBuffer);
       queueWrite(bytes);
     } catch (e) {
-      const msg = `[Tunnel] Invalid payload for ${hostname}:${port}: ${errMsg(e)}`;
+      const msg = `[Tunnel] Invalid payload for ${hostname}:${port}: ${
+        errMsg(e)
+      }`;
       console.error(msg);
       onError?.(new Error(msg));
       closeSocket();
@@ -169,7 +130,9 @@ function handleSocketChannel(
       }
     } catch (e) {
       if (!closed) {
-        const msg = `[Tunnel] Connection to ${hostname}:${port} failed: ${errMsg(e)}`;
+        const msg = `[Tunnel] Connection to ${hostname}:${port} failed: ${
+          errMsg(e)
+        }`;
         console.error(msg);
         onError?.(new Error(msg));
       }
@@ -206,7 +169,9 @@ function handleDataChannel(
     handleSocketChannel(channel, trackSocket, onError);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error(`[Tunnel] Failed to handle channel "${channel.label}": ${msg}`);
+    console.error(
+      `[Tunnel] Failed to handle channel "${channel.label}": ${msg}`,
+    );
     channel.close();
   }
 }
@@ -250,7 +215,7 @@ export function wireTunnel(target: TunnelWireTarget): void {
     onDataChannel.subscribe((channel) =>
       handleDataChannel(channel, (s) => target.trackSocket(s), (err) => {
         console.error(`[Tunnel] Channel error: ${err.message}`);
-      }),
+      })
     );
   }
 
@@ -263,4 +228,8 @@ export function wireTunnel(target: TunnelWireTarget): void {
   });
 }
 
-export { parseDestination, handleSocketChannel, handleDataChannel };
+export {
+  handleDataChannel,
+  handleSocketChannel,
+  parseSocketDestination as parseDestination,
+};

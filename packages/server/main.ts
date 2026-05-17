@@ -1,4 +1,8 @@
-import { tunnelCodeFromPubkey } from "../core/nostr.ts";
+import {
+  NOSTR_RELAYS,
+  nostrTunnelId,
+  tunnelCodeFromPubkey,
+} from "../core/nostr.ts";
 import { checkPort } from "./lib/natCheck.ts";
 import { openPort, type PortMapping } from "./lib/upnp.ts";
 import { PulsarDirectServer } from "./lib/connection/direct.ts";
@@ -88,10 +92,9 @@ try {
     console.log(`✅ Pulsar Nostr mode ready`);
     console.log(`Server pubkey: ${pubkey}`);
     console.log(`Tunnel code: ${tunnelCodeFromPubkey(pubkey)}`);
-    console.log(`Nostr tunnel ID: pulsar${tunnelCodeFromPubkey(pubkey)}`);
+    console.log(`Nostr tunnel ID: ${nostrTunnelId(pubkey)}`);
     console.log(`Listening on relays:`);
-    console.log(`  - wss://nostr.data.haus`);
-    console.log(`  - wss://kotukonostr.onrender.com`);
+    for (const relay of NOSTR_RELAYS) console.log(`  - ${relay}`);
     console.log(`Waiting for client connections...`);
 
     nostrServer.onconnection = (conn) => {
@@ -111,7 +114,9 @@ try {
     await new Promise(() => {});
   } catch (nostrErr) {
     console.error(
-      `❌ Nostr mode also failed: ${nostrErr instanceof Error ? nostrErr.message : String(nostrErr)}`,
+      `❌ Nostr mode also failed: ${
+        nostrErr instanceof Error ? nostrErr.message : String(nostrErr)
+      }`,
     );
     Deno.exit(1);
   }

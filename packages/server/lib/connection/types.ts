@@ -1,4 +1,8 @@
-import type { RTCDtlsTransport, RTCSctpTransport, RTCDataChannel } from "npm:werift";
+import type {
+  RTCDataChannel,
+  RTCDtlsTransport,
+  RTCSctpTransport,
+} from "npm:werift";
 
 /**
  * Every server connection, regardless of transport mode, satisfies this interface.

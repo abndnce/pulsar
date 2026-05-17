@@ -14,7 +14,6 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
-    "test": "vitest",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm run build"
   },
@@ -22,7 +21,6 @@
     "@noble/curves": "^1.8.1"
   },
   "devDependencies": {
-    "tsdown": "^0.22.0",
-    "typescript": "^6.0.3"
+    "tsdown": "^0.22.0"
   }
 }

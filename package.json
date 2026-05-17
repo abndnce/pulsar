@@ -1,5 +1,19 @@
 {
   "name": "pulsar",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@noble/curves": "^1.8.1"
+  },
+  "devDependencies": {
+    "knip": "^5.48.0",
+    "prettier": "^3.5.0",
+    "prettier-plugin-svelte": "^3.3.0",
+    "typescript": "^6.0.3"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "knip": "knip"
+  }
 }

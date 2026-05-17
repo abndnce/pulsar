@@ -1,9 +1,11 @@
 import {
-  PULSAR_UFRAG,
-  PULSAR_PWD,
-  PULSAR_FINGERPRINT,
   KEEPALIVE_LABEL,
+  PULSAR_FINGERPRINT,
+  PULSAR_PWD,
+  PULSAR_UFRAG,
 } from "../../../core/constants.ts";
+import { waitForPeerConnectionConnected } from "../../../core/webrtc.ts";
+import { waitForDataChannelOpen } from "../socket-channel.ts";
 import type { PulsarClientConnection } from "./types.ts";
 
 // ── connectDirect ─────────────────────────────────────────────────
@@ -81,25 +83,9 @@ export async function connectDirect(
     sdpMLineIndex: 0,
   });
 
-  // Wait for the ICE + DTLS + SCTP connection to be established
-  await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error("Connection timed out after 30s"));
-    }, 30_000);
-
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "connected") {
-        clearTimeout(timeout);
-        resolve();
-      } else if (
-        pc.connectionState === "failed" ||
-        pc.connectionState === "disconnected"
-      ) {
-        clearTimeout(timeout);
-        reject(new Error(`Connection failed: ${pc.connectionState}`));
-      }
-    };
-  });
+  // Wait for ICE, DTLS, SCTP, and the required keepalive channel.
+  await waitForPeerConnectionConnected(pc);
+  await waitForDataChannelOpen(keepalive, pc);
 
   return {
     keepalive,

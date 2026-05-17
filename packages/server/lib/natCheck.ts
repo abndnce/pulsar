@@ -1,5 +1,9 @@
 const MAGIC_COOKIE = 0x2112a442;
-const STUN_SERVER: Deno.NetAddr = { hostname: "stun.voipgate.com", port: 3478, transport: "udp" };
+const STUN_SERVER: Deno.NetAddr = {
+  hostname: "stun.voipgate.com",
+  port: 3478,
+  transport: "udp",
+};
 
 export type NatCheckResult = {
   isPublic: boolean;
@@ -23,7 +27,9 @@ export async function checkPort(
   await conn.send(probe, STUN_SERVER);
 
   const result = await recvWithTimeout(conn, 2000);
-  if (!result) return { isPublic: false, reason: "STUN server did not respond" };
+  if (!result) {
+    return { isPublic: false, reason: "STUN server did not respond" };
+  }
 
   const [pkt] = result;
   const dv = new DataView(pkt.buffer);

@@ -5,7 +5,7 @@
  * established (direct, nostr, etc.).
  */
 
-import { SOCKET_PREFIX } from "../../core/constants.ts";
+import { socketChannelLabel } from "../../core/socket.ts";
 
 /**
  * Wait for an RTCDataChannel to enter the "open" state.
@@ -96,7 +96,9 @@ export function openSocketChannel(
   timeoutMs?: number,
   signal?: AbortSignal,
 ): Promise<RTCDataChannel> {
-  const label = `${SOCKET_PREFIX}${hostname}:${port}`;
+  const label = socketChannelLabel(hostname, port);
   const channel = pc.createDataChannel(label, { ordered: true });
-  return waitForDataChannelOpen(channel, pc, timeoutMs, signal).then(() => channel);
+  return waitForDataChannelOpen(channel, pc, timeoutMs, signal).then(() =>
+    channel
+  );
 }
