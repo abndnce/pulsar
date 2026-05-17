@@ -1,4 +1,4 @@
-@import "@unocss/reset/tailwind-v4.css";
+@import '@unocss/reset/tailwind-v4.css';
 
 :root {
   color-scheme: light dark;

@@ -18,11 +18,7 @@ export class WispStream {
     readonly hostname: string,
     readonly port: number,
     initialBuffer: number,
-    private readonly send: (
-      type: number,
-      streamId: number,
-      payload: Uint8Array,
-    ) => void,
+    private readonly send: (type: number, streamId: number, payload: Uint8Array) => void,
   ) {
     this.bufferRemaining = initialBuffer;
   }
@@ -83,8 +79,8 @@ export class WispClient {
   readonly connected: Promise<void>;
 
   constructor(url: string) {
-    this.ws = new WebSocket(url, "wisp");
-    this.ws.binaryType = "arraybuffer";
+    this.ws = new WebSocket(url, 'wisp');
+    this.ws.binaryType = 'arraybuffer';
     this.connected = new Promise<void>((resolve, reject) => {
       this.handshakeResolve = resolve;
       this.handshakeReject = reject;
@@ -99,19 +95,19 @@ export class WispClient {
       this.usedStreamIds.clear();
       this.onclose?.();
       if (!this.handshakeComplete) {
-        this.handshakeReject?.(new Error("WebSocket closed during handshake"));
+        this.handshakeReject?.(new Error('WebSocket closed during handshake'));
       }
     };
     this.ws.onerror = () => {
       if (!this.handshakeComplete) {
-        this.handshakeReject?.(new Error("WebSocket error during handshake"));
+        this.handshakeReject?.(new Error('WebSocket error during handshake'));
       }
     };
   }
 
   connect(hostname: string, port: number): WispStream {
     if (this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error("Wisp WebSocket is not open");
+      throw new Error('Wisp WebSocket is not open');
     }
 
     const streamId = this.generateStreamId();
@@ -205,7 +201,7 @@ export class WispClient {
 
   private handleClose(streamId: number, payload: Uint8Array) {
     if (streamId === 0 && !this.handshakeComplete) {
-      this.handshakeReject?.(new Error("Server rejected handshake"));
+      this.handshakeReject?.(new Error('Server rejected handshake'));
       return;
     }
 
@@ -221,9 +217,5 @@ export class WispClient {
 
 function readUint32Payload(payload: Uint8Array, fallback: number): number {
   if (payload.length < 4) return fallback;
-  return new DataView(
-    payload.buffer,
-    payload.byteOffset,
-    payload.byteLength,
-  ).getUint32(0, true);
+  return new DataView(payload.buffer, payload.byteOffset, payload.byteLength).getUint32(0, true);
 }

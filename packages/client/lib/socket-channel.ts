@@ -5,7 +5,7 @@
  * established (direct, nostr, etc.).
  */
 
-import { socketChannelLabel } from "../../core/socket.ts";
+import { socketChannelLabel } from '../../core/socket.ts';
 
 /**
  * Wait for an RTCDataChannel to enter the "open" state.
@@ -24,11 +24,11 @@ export function waitForDataChannelOpen(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
-      reject(new DOMException("The operation was aborted.", "AbortError"));
+      reject(new DOMException('The operation was aborted.', 'AbortError'));
       return;
     }
 
-    if (channel.readyState === "open") {
+    if (channel.readyState === 'open') {
       resolve();
       return;
     }
@@ -40,11 +40,11 @@ export function waitForDataChannelOpen(
 
     const cleanup = () => {
       clearTimeout(timeout);
-      channel.removeEventListener("open", onOpen);
-      channel.removeEventListener("close", onClose);
-      channel.removeEventListener("error", onError);
-      pc.removeEventListener("connectionstatechange", onStateChange);
-      signal?.removeEventListener("abort", onAbort);
+      channel.removeEventListener('open', onOpen);
+      channel.removeEventListener('close', onClose);
+      channel.removeEventListener('error', onError);
+      pc.removeEventListener('connectionstatechange', onStateChange);
+      signal?.removeEventListener('abort', onAbort);
     };
 
     const onOpen = () => {
@@ -54,16 +54,16 @@ export function waitForDataChannelOpen(
 
     const onClose = () => {
       cleanup();
-      reject(new Error("DataChannel closed before opening"));
+      reject(new Error('DataChannel closed before opening'));
     };
 
     const onError = () => {
       cleanup();
-      reject(new Error("DataChannel error before opening"));
+      reject(new Error('DataChannel error before opening'));
     };
 
     const onStateChange = () => {
-      if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
         cleanup();
         reject(new Error(`Peer connection ${pc.connectionState}`));
       }
@@ -71,14 +71,14 @@ export function waitForDataChannelOpen(
 
     const onAbort = () => {
       cleanup();
-      reject(new DOMException("The operation was aborted.", "AbortError"));
+      reject(new DOMException('The operation was aborted.', 'AbortError'));
     };
 
-    channel.addEventListener("open", onOpen, { once: true });
-    channel.addEventListener("close", onClose, { once: true });
-    channel.addEventListener("error", onError, { once: true });
-    pc.addEventListener("connectionstatechange", onStateChange);
-    signal?.addEventListener("abort", onAbort, { once: true });
+    channel.addEventListener('open', onOpen, { once: true });
+    channel.addEventListener('close', onClose, { once: true });
+    channel.addEventListener('error', onError, { once: true });
+    pc.addEventListener('connectionstatechange', onStateChange);
+    signal?.addEventListener('abort', onAbort, { once: true });
   });
 }
 
@@ -98,7 +98,5 @@ export function openSocketChannel(
 ): Promise<RTCDataChannel> {
   const label = socketChannelLabel(hostname, port);
   const channel = pc.createDataChannel(label, { ordered: true });
-  return waitForDataChannelOpen(channel, pc, timeoutMs, signal).then(() =>
-    channel
-  );
+  return waitForDataChannelOpen(channel, pc, timeoutMs, signal).then(() => channel);
 }

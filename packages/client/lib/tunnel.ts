@@ -1,5 +1,5 @@
-import { SOCKET_PREFIX } from "../../core/constants.ts";
-import { waitForDataChannelOpen } from "./socket-channel.ts";
+import { SOCKET_PREFIX } from '../../core/constants.ts';
+import { waitForDataChannelOpen } from './socket-channel.ts';
 
 // ── WebSocket-like adapter for libcurl.js ──────────────────────────
 
@@ -23,10 +23,10 @@ class DataChannelSocket extends EventTarget {
   readonly CLOSED = 3;
 
   readonly url: string;
-  readonly protocol = "";
-  readonly extensions = "";
+  readonly protocol = '';
+  readonly extensions = '';
 
-  binaryType: string = "arraybuffer";
+  binaryType: string = 'arraybuffer';
 
   onopen: ((event: Event) => void) | null = null;
   onclose: ((event: CloseEvent) => void) | null = null;
@@ -45,7 +45,7 @@ class DataChannelSocket extends EventTarget {
     const channel = pc.createDataChannel(`${SOCKET_PREFIX}${destination}`, {
       ordered: true,
     });
-    channel.binaryType = "arraybuffer";
+    channel.binaryType = 'arraybuffer';
     this._channel = channel;
 
     void this._open(channel, pc);
@@ -77,7 +77,7 @@ class DataChannelSocket extends EventTarget {
     this._readyState = DataChannelSocket.OPEN;
 
     channel.onmessage = (event) => {
-      this._dispatch(new MessageEvent("message", { data: event.data }));
+      this._dispatch(new MessageEvent('message', { data: event.data }));
     };
 
     channel.onclose = () => {
@@ -89,7 +89,7 @@ class DataChannelSocket extends EventTarget {
       this._dispatchError();
     };
 
-    this._dispatch(new Event("open"));
+    this._dispatch(new Event('open'));
   }
 
   get readyState(): number {
@@ -102,10 +102,10 @@ class DataChannelSocket extends EventTarget {
 
   send(data: string | ArrayBufferLike | ArrayBufferView): void {
     if (this._readyState !== DataChannelSocket.OPEN || !this._channel) {
-      throw new Error("DataChannelSocket is not open");
+      throw new Error('DataChannelSocket is not open');
     }
 
-    if (typeof data === "string") {
+    if (typeof data === 'string') {
       this._channel.send(data);
     } else {
       // RTCDataChannel accepts ArrayBuffer or ArrayBufferView
@@ -117,7 +117,7 @@ class DataChannelSocket extends EventTarget {
     if (this._closed) return;
     this._closed = true;
 
-    if (this._channel && this._channel.readyState !== "closed") {
+    if (this._channel && this._channel.readyState !== 'closed') {
       this._channel.close();
     } else {
       this._dispatchClose();
@@ -128,11 +128,7 @@ class DataChannelSocket extends EventTarget {
 
   private _dispatch(event: Event): void {
     const type = event.type;
-    const handlerName = `on${type}` as
-      | "onopen"
-      | "onclose"
-      | "onerror"
-      | "onmessage";
+    const handlerName = `on${type}` as 'onopen' | 'onclose' | 'onerror' | 'onmessage';
 
     const handler = this[handlerName];
     if (handler) (handler as (event: Event) => void)(event);
@@ -141,14 +137,14 @@ class DataChannelSocket extends EventTarget {
   }
 
   private _dispatchError(): void {
-    this._dispatch(new Event("error"));
+    this._dispatch(new Event('error'));
   }
 
   private _dispatchClose(): void {
     if (this._closeDispatched) return;
     this._closeDispatched = true;
     this._readyState = DataChannelSocket.CLOSED;
-    this._dispatch(new CloseEvent("close"));
+    this._dispatch(new CloseEvent('close'));
   }
 }
 
@@ -174,29 +170,25 @@ class DataChannelSocket extends EventTarget {
  * The factory parses `<hostname>:<port>` from the URL path, opens a
  * Pulsar socket data channel, and returns a WebSocket-like adapter.
  */
-export function libcurlTransport(
-  pc: RTCPeerConnection,
-): (url: string) => DataChannelSocket {
+export function libcurlTransport(pc: RTCPeerConnection): (url: string) => DataChannelSocket {
   return (url: string): DataChannelSocket => {
     // Parse destination from URL path: "wss://host/path" → "path"
     let dest: string;
     try {
       const parsed = new URL(url);
-      dest = parsed.pathname.replace(/^\//, "").replace(/\/$/, "");
+      dest = parsed.pathname.replace(/^\//, '').replace(/\/$/, '');
     } catch {
       // Fallback: manual parse
-      const slash = url.indexOf("/", url.indexOf("//") + 2);
+      const slash = url.indexOf('/', url.indexOf('//') + 2);
       dest = slash === -1 ? url : url.slice(slash + 1);
     }
 
     if (!dest) {
-      throw new Error(
-        `libcurl transport: no destination found in URL "${url}"`,
-      );
+      throw new Error(`libcurl transport: no destination found in URL "${url}"`);
     }
 
     // Validate the destination format (hostname:port)
-    const sep = dest.lastIndexOf(":");
+    const sep = dest.lastIndexOf(':');
     if (sep === -1) {
       throw new Error(
         `libcurl transport: invalid destination "${dest}" — expected "hostname:port"`,

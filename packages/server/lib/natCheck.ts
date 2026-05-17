@@ -1,8 +1,8 @@
 const MAGIC_COOKIE = 0x2112a442;
 const STUN_SERVER: Deno.NetAddr = {
-  hostname: "stun.voipgate.com",
+  hostname: 'stun.voipgate.com',
   port: 3478,
-  transport: "udp",
+  transport: 'udp',
 };
 
 export type NatCheckResult = {
@@ -18,35 +18,32 @@ export type NatCheckResult = {
  * @param conn  The already-bound UDP socket to probe on
  * @param port  The local port the socket is bound to
  */
-export async function checkPort(
-  conn: Deno.DatagramConn,
-  port: number,
-): Promise<NatCheckResult> {
+export async function checkPort(conn: Deno.DatagramConn, port: number): Promise<NatCheckResult> {
   // Stage 1: Send binding request, wait for OTHER-ADDRESS
   const probe = createStunPacket(0, false);
   await conn.send(probe, STUN_SERVER);
 
   const result = await recvWithTimeout(conn, 2000);
   if (!result) {
-    return { isPublic: false, reason: "STUN server did not respond" };
+    return { isPublic: false, reason: 'STUN server did not respond' };
   }
 
   const [pkt] = result;
   const dv = new DataView(pkt.buffer);
   if (dv.getUint32(4) != MAGIC_COOKIE) {
-    return { isPublic: false, reason: "Bad STUN response" };
+    return { isPublic: false, reason: 'Bad STUN response' };
   }
 
   const attrs = parseStunAttributes(pkt);
   if (!attrs.otherAddress || !attrs.xorAddress) {
-    return { isPublic: false, reason: "STUN server does not support RFC 5780" };
+    return { isPublic: false, reason: 'STUN server does not support RFC 5780' };
   }
 
   // Symmetric NAT check
   if (attrs.xorAddress.port != port) {
     return {
       isPublic: false,
-      reason: "Symmetric NAT detected",
+      reason: 'Symmetric NAT detected',
       publicAddress: attrs.xorAddress,
     };
   }
@@ -60,7 +57,7 @@ export async function checkPort(
     if (!pkt2) {
       return {
         isPublic: false,
-        reason: "No response received / address-based filtering",
+        reason: 'No response received / address-based filtering',
         publicAddress: attrs.xorAddress,
       };
     }
@@ -76,13 +73,8 @@ export async function checkPort(
 }
 
 function recvWithTimeout(conn: Deno.DatagramConn, ms: number) {
-  const recv: Promise<[Uint8Array, Deno.Addr]> = conn
-    .receive()
-    .catch(() => null as never);
-  return Promise.race([
-    recv,
-    new Promise<null>((r) => setTimeout(() => r(null), ms)),
-  ]);
+  const recv: Promise<[Uint8Array, Deno.Addr]> = conn.receive().catch(() => null as never);
+  return Promise.race([recv, new Promise<null>((r) => setTimeout(() => r(null), ms))]);
 }
 
 function parseStunAttributes(data: Uint8Array) {
@@ -130,10 +122,5 @@ function createStunPacket(changeValue: number, includeAttr: boolean) {
 }
 
 function formatIp(raw: number) {
-  return [
-    (raw >>> 24) & 255,
-    (raw >>> 16) & 255,
-    (raw >>> 8) & 255,
-    raw & 255,
-  ].join(".");
+  return [(raw >>> 24) & 255, (raw >>> 16) & 255, (raw >>> 8) & 255, raw & 255].join('.');
 }

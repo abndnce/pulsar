@@ -3,10 +3,10 @@ import {
   PULSAR_FINGERPRINT,
   PULSAR_PWD,
   PULSAR_UFRAG,
-} from "../../../core/constants.ts";
-import { waitForPeerConnectionConnected } from "../../../core/webrtc.ts";
-import { waitForDataChannelOpen } from "../socket-channel.ts";
-import type { PulsarClientConnection } from "./types.ts";
+} from '../../../core/constants.ts';
+import { waitForPeerConnectionConnected } from '../../../core/webrtc.ts';
+import { waitForDataChannelOpen } from '../socket-channel.ts';
+import type { PulsarClientConnection } from './types.ts';
 
 // ── connectDirect ─────────────────────────────────────────────────
 
@@ -20,10 +20,7 @@ import type { PulsarClientConnection } from "./types.ts";
  * @returns A connected PulsarClientConnection with an open keepalive channel
  *          and a `connect()` helper for opening socket tunnels.
  */
-export async function connectDirect(
-  host: string,
-  port: number,
-): Promise<PulsarClientConnection> {
+export async function connectDirect(host: string, port: number): Promise<PulsarClientConnection> {
   const pc = new RTCPeerConnection();
 
   // Create the keepalive data channel (mandated by Pulsar spec)
@@ -59,27 +56,27 @@ export async function connectDirect(
   // last line. Candidates are added via Trickle ICE after setting the
   // remote description.
   const remoteSdp = [
-    "v=0",
-    "o=- 111 222 IN IP4 0.0.0.0",
-    "s=-",
-    "t=0 0",
+    'v=0',
+    'o=- 111 222 IN IP4 0.0.0.0',
+    's=-',
+    't=0 0',
     `m=application ${port} UDP/DTLS/SCTP webrtc-datachannel`,
     `c=IN IP4 ${host}`,
     `a=ice-ufrag:${PULSAR_UFRAG}`,
     `a=ice-pwd:${PULSAR_PWD}`,
     `a=fingerprint:sha-256 ${PULSAR_FINGERPRINT}`,
-    "a=setup:active",
-    "a=mid:0",
-    "a=sctp-port:5000",
-    "",
-  ].join("\r\n");
+    'a=setup:active',
+    'a=mid:0',
+    'a=sctp-port:5000',
+    '',
+  ].join('\r\n');
 
-  await pc.setRemoteDescription({ type: "answer", sdp: remoteSdp });
+  await pc.setRemoteDescription({ type: 'answer', sdp: remoteSdp });
 
   // Provide the server's ICE candidate via Trickle ICE
   await pc.addIceCandidate({
     candidate: `candidate:1 1 UDP 2130706431 ${host} ${port} typ host`,
-    sdpMid: "0",
+    sdpMid: '0',
     sdpMLineIndex: 0,
   });
 

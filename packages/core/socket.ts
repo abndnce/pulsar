@@ -1,4 +1,4 @@
-import { SOCKET_PREFIX } from "./constants.ts";
+import { SOCKET_PREFIX } from './constants.ts';
 
 export type SocketDestination = {
   hostname: string;
@@ -9,29 +9,22 @@ export function socketChannelLabel(hostname: string, port: number): string {
   return `${SOCKET_PREFIX}${formatSocketDestination(hostname, port)}`;
 }
 
-export function formatSocketDestination(
-  hostname: string,
-  port: number,
-): string {
-  const host = hostname.includes(":") && !hostname.startsWith("[")
-    ? `[${hostname}]`
-    : hostname;
+export function formatSocketDestination(hostname: string, port: number): string {
+  const host = hostname.includes(':') && !hostname.startsWith('[') ? `[${hostname}]` : hostname;
   return `${host}:${port}`;
 }
 
 export function parseSocketDestination(label: string): SocketDestination {
   if (!label.startsWith(SOCKET_PREFIX)) {
-    throw new Error(
-      `Unknown channel label "${label}" - expected prefix "${SOCKET_PREFIX}"`,
-    );
+    throw new Error(`Unknown channel label "${label}" - expected prefix "${SOCKET_PREFIX}"`);
   }
 
   const dest = label.slice(SOCKET_PREFIX.length);
   if (!dest) throw new Error(`Socket destination missing from "${label}"`);
 
-  if (dest.startsWith("[")) {
-    const closeBracket = dest.indexOf("]");
-    if (closeBracket === -1 || dest[closeBracket + 1] !== ":") {
+  if (dest.startsWith('[')) {
+    const closeBracket = dest.indexOf(']');
+    if (closeBracket === -1 || dest[closeBracket + 1] !== ':') {
       throw new Error(`Invalid IPv6 destination "${dest}"`);
     }
 
@@ -44,7 +37,7 @@ export function parseSocketDestination(label: string): SocketDestination {
     return { hostname, port };
   }
 
-  const separator = dest.lastIndexOf(":");
+  const separator = dest.lastIndexOf(':');
   if (separator === -1) {
     throw new Error(`Invalid destination "${dest}" - missing port`);
   }

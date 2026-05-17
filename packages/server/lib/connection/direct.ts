@@ -10,9 +10,9 @@ import {
   RTCDtlsParameters,
   RTCDtlsTransport,
   RTCSctpTransport,
-} from "npm:werift";
-import { Event } from "npm:werift";
-import { Buffer } from "node:buffer";
+} from 'npm:werift';
+import { Event } from 'npm:werift';
+import { Buffer } from 'node:buffer';
 import {
   KEEPALIVE_LABEL,
   PULSAR_CERT_PEM,
@@ -21,16 +21,14 @@ import {
   PULSAR_PWD,
   PULSAR_SIGNATURE_HASH,
   PULSAR_UFRAG,
-} from "../../../core/constants.ts";
-import type { PulsarServerConnection } from "./types.ts";
+} from '../../../core/constants.ts';
+import type { PulsarServerConnection } from './types.ts';
 
 // ── STUN ─────────────────────────────────────────────────────────
 
 /** Convert a Uint8Array to a Buffer (required by werift's STUN parser). */
 function toBuffer(data: Uint8Array): Buffer {
-  return data instanceof Buffer
-    ? data
-    : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+  return data instanceof Buffer ? data : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
 }
 
 function isStunBindingRequest(data: Uint8Array): boolean {
@@ -44,20 +42,13 @@ function isStunBindingRequest(data: Uint8Array): boolean {
   );
 }
 
-function buildStunResponse(
-  data: Uint8Array,
-  addr: Deno.NetAddr,
-): Uint8Array | null {
+function buildStunResponse(data: Uint8Array, addr: Deno.NetAddr): Uint8Array | null {
   const buf = toBuffer(data);
   const msg = parseMessage(buf);
   if (!msg) return null;
   try {
-    const res = new Message(
-      methods.BINDING,
-      classes.RESPONSE,
-      msg.transactionId,
-    );
-    res.setAttribute("XOR-MAPPED-ADDRESS", [addr.hostname, addr.port]);
+    const res = new Message(methods.BINDING, classes.RESPONSE, msg.transactionId);
+    res.setAttribute('XOR-MAPPED-ADDRESS', [addr.hostname, addr.port]);
     res.addMessageIntegrity(PULSAR_PWD as any);
     res.addFingerprint();
     return res.bytes;
@@ -72,7 +63,7 @@ class PeerTransport {
   closed = false;
   readonly onData = new Event<[Uint8Array]>();
   readonly address = {};
-  readonly type = "ice";
+  readonly type = 'ice';
   private _rawSocket: Deno.DatagramConn;
   private _peerAddr: Deno.NetAddr;
 
@@ -86,9 +77,7 @@ class PeerTransport {
     if (buf[0] > 19 && buf[0] < 64) {
       // werift's DTLS/ICE handlers expect Buffer with Node.js methods
       this.onData.execute(
-        buf instanceof Buffer
-          ? buf
-          : Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength),
+        buf instanceof Buffer ? buf : Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength),
       );
     }
   }
@@ -147,9 +136,7 @@ export class PulsarDirectConnection implements PulsarServerConnection {
 
 // ── Session builder ──────────────────────────────────────────────
 
-async function startSession(
-  transport: PeerTransport,
-): Promise<PulsarDirectConnection> {
+async function startSession(transport: PeerTransport): Promise<PulsarDirectConnection> {
   const certificate = new RTCCertificate(
     PULSAR_KEY_PEM,
     PULSAR_CERT_PEM,
@@ -175,23 +162,18 @@ async function startSession(
     srtpProfiles,
   );
 
-  const dummyFingerprint = new RTCDtlsFingerprint(
-    "sha-256",
-    PULSAR_FINGERPRINT,
-  );
-  dtlsTransport.setRemoteParams(
-    new RTCDtlsParameters([dummyFingerprint], "client"),
-  );
-  (dtlsTransport as any).role = "client";
+  const dummyFingerprint = new RTCDtlsFingerprint('sha-256', PULSAR_FINGERPRINT);
+  dtlsTransport.setRemoteParams(new RTCDtlsParameters([dummyFingerprint], 'client'));
+  (dtlsTransport as any).role = 'client';
 
   const sctpTransport = new RTCSctpTransport(5000);
   sctpTransport.setDtlsTransport(dtlsTransport);
 
   await dtlsTransport.start();
-  console.log("[webrtc-direct] DTLS connected");
+  console.log('[webrtc-direct] DTLS connected');
 
   await sctpTransport.start(5000);
-  console.log("[webrtc-direct] SCTP connected");
+  console.log('[webrtc-direct] SCTP connected');
 
   const keepalive = new RTCDataChannel(
     sctpTransport as any,
@@ -202,16 +184,11 @@ async function startSession(
       negotiated: true,
     }),
   );
-  keepalive.onopen = () => console.log("[webrtc-direct] keepalive DC open");
+  keepalive.onopen = () => console.log('[webrtc-direct] keepalive DC open');
 
   // ── Build connection object ──
 
-  const conn = new PulsarDirectConnection(
-    dtlsTransport,
-    sctpTransport,
-    keepalive,
-    transport,
-  );
+  const conn = new PulsarDirectConnection(dtlsTransport, sctpTransport, keepalive, transport);
 
   return conn;
 }
@@ -250,7 +227,7 @@ export class PulsarDirectServer {
   constructor(socket: Deno.DatagramConn) {
     this._socket = socket;
     this._listenLoop().catch((err) => {
-      console.error("[webrtc-direct] listen loop error:", err);
+      console.error('[webrtc-direct] listen loop error:', err);
     });
   }
 
@@ -291,7 +268,7 @@ export class PulsarDirectServer {
           }
         }
       } catch (err) {
-        if (!this._closed) console.error("[webrtc-direct] receive error:", err);
+        if (!this._closed) console.error('[webrtc-direct] receive error:', err);
       }
     }
   }

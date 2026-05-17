@@ -1,7 +1,7 @@
-import { RTCDataChannel, RTCDtlsTransport, RTCSctpTransport } from "npm:werift";
-import { Buffer } from "node:buffer";
-import { KEEPALIVE_LABEL } from "../../core/constants.ts";
-import { parseSocketDestination } from "../../core/socket.ts";
+import { RTCDataChannel, RTCDtlsTransport, RTCSctpTransport } from 'npm:werift';
+import { Buffer } from 'node:buffer';
+import { KEEPALIVE_LABEL } from '../../core/constants.ts';
+import { parseSocketDestination } from '../../core/socket.ts';
 
 // ── writeAll ──────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ function handleSocketChannel(
   };
 
   const closeChannel = () => {
-    if (channel.readyState === "open" || channel.readyState === "connecting") {
+    if (channel.readyState === 'open' || channel.readyState === 'connecting') {
       try {
         channel.close();
       } catch {
@@ -72,9 +72,7 @@ function handleSocketChannel(
         if (!closed && socket) await writeAll(socket, chunk);
       })
       .catch((e) => {
-        const msg = `[Tunnel] Write failed for ${hostname}:${port}: ${
-          errMsg(e)
-        }`;
+        const msg = `[Tunnel] Write failed for ${hostname}:${port}: ${errMsg(e)}`;
         console.error(msg);
         onError?.(new Error(msg));
         closeSocket();
@@ -87,18 +85,17 @@ function handleSocketChannel(
   channel.onmessage = (event) => {
     try {
       const data = event.data;
-      const bytes = data instanceof ArrayBuffer
-        ? new Uint8Array(data)
-        : data instanceof Uint8Array
-        ? data
-        : typeof data === "string"
-        ? new TextEncoder().encode(data)
-        : new Uint8Array(data as ArrayBuffer);
+      const bytes =
+        data instanceof ArrayBuffer
+          ? new Uint8Array(data)
+          : data instanceof Uint8Array
+            ? data
+            : typeof data === 'string'
+              ? new TextEncoder().encode(data)
+              : new Uint8Array(data as ArrayBuffer);
       queueWrite(bytes);
     } catch (e) {
-      const msg = `[Tunnel] Invalid payload for ${hostname}:${port}: ${
-        errMsg(e)
-      }`;
+      const msg = `[Tunnel] Invalid payload for ${hostname}:${port}: ${errMsg(e)}`;
       console.error(msg);
       onError?.(new Error(msg));
       closeSocket();
@@ -113,7 +110,7 @@ function handleSocketChannel(
 
   void (async () => {
     try {
-      socket = await Deno.connect({ hostname, port, transport: "tcp" });
+      socket = await Deno.connect({ hostname, port, transport: 'tcp' });
       trackSocket?.(socket);
 
       // Flush any data queued while TCP was connecting
@@ -124,15 +121,13 @@ function handleSocketChannel(
       while (!closed) {
         const read = await socket.read(buf);
         if (read === null) break;
-        if (read > 0 && channel.readyState === "open") {
+        if (read > 0 && channel.readyState === 'open') {
           channel.send(Buffer.from(buf.subarray(0, read)));
         }
       }
     } catch (e) {
       if (!closed) {
-        const msg = `[Tunnel] Connection to ${hostname}:${port} failed: ${
-          errMsg(e)
-        }`;
+        const msg = `[Tunnel] Connection to ${hostname}:${port} failed: ${errMsg(e)}`;
         console.error(msg);
         onError?.(new Error(msg));
       }
@@ -158,10 +153,10 @@ function handleDataChannel(
   onError?: (err: Error) => void,
 ): void {
   // Ensure binary type for ArrayBuffer messages from the browser
-  if ("binaryType" in channel) (channel as any).binaryType = "arraybuffer";
+  if ('binaryType' in channel) (channel as any).binaryType = 'arraybuffer';
 
   if (channel.label === KEEPALIVE_LABEL) {
-    console.log("[Tunnel] Ignoring duplicate keepalive channel");
+    console.log('[Tunnel] Ignoring duplicate keepalive channel');
     return;
   }
 
@@ -169,9 +164,7 @@ function handleDataChannel(
     handleSocketChannel(channel, trackSocket, onError);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error(
-      `[Tunnel] Failed to handle channel "${channel.label}": ${msg}`,
-    );
+    console.error(`[Tunnel] Failed to handle channel "${channel.label}": ${msg}`);
     channel.close();
   }
 }
@@ -211,25 +204,25 @@ export function wireTunnel(target: TunnelWireTarget): void {
 
   const onDataChannel = sctpTransport.onDataChannel;
 
-  if (onDataChannel && typeof onDataChannel.subscribe === "function") {
+  if (onDataChannel && typeof onDataChannel.subscribe === 'function') {
     onDataChannel.subscribe((channel) =>
-      handleDataChannel(channel, (s) => target.trackSocket(s), (err) => {
-        console.error(`[Tunnel] Channel error: ${err.message}`);
-      })
+      handleDataChannel(
+        channel,
+        (s) => target.trackSocket(s),
+        (err) => {
+          console.error(`[Tunnel] Channel error: ${err.message}`);
+        },
+      ),
     );
   }
 
   // ── Auto-cleanup on DTLS disconnect ──
 
   dtlsTransport.onStateChange?.subscribe?.((state: string) => {
-    if (["failed", "closed"].includes(state)) {
+    if (['failed', 'closed'].includes(state)) {
       target.close().catch(() => {});
     }
   });
 }
 
-export {
-  handleDataChannel,
-  handleSocketChannel,
-  parseSocketDestination as parseDestination,
-};
+export { handleDataChannel, handleSocketChannel, parseSocketDestination as parseDestination };

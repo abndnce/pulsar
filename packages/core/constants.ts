@@ -1,10 +1,10 @@
-export const SOCKET_PREFIX = "socket/";
-export const KEEPALIVE_LABEL = "keepalive";
+export const SOCKET_PREFIX = 'socket/';
+export const KEEPALIVE_LABEL = 'keepalive';
 
-export const PULSAR_UFRAG = "pulsar";
-export const PULSAR_PWD = "pulsarpulsarpulsarpuls";
+export const PULSAR_UFRAG = 'pulsar';
+export const PULSAR_PWD = 'pulsarpulsarpulsarpuls';
 export const PULSAR_FINGERPRINT =
-  "F1:85:10:8F:36:FF:58:D8:D0:4B:52:D7:ED:DC:5C:28:AE:7D:DB:54:0E:2A:DD:C7:C3:94:EA:A1:27:D0:4E:78";
+  'F1:85:10:8F:36:FF:58:D8:D0:4B:52:D7:ED:DC:5C:28:AE:7D:DB:54:0E:2A:DD:C7:C3:94:EA:A1:27:D0:4E:78';
 
 // werift's signatureHash config for the fixed P-256 certificate.
 export const PULSAR_SIGNATURE_HASH = { hash: 4, signature: 3 } as const;

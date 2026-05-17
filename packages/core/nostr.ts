@@ -1,13 +1,10 @@
-import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
+import { schnorr, secp256k1 } from '@noble/curves/secp256k1';
 
-export const NOSTR_RELAYS = [
-  "wss://nostr.data.haus",
-  "wss://kotukonostr.onrender.com",
-] as const;
+export const NOSTR_RELAYS = ['wss://nostr.data.haus', 'wss://kotukonostr.onrender.com'] as const;
 
 export const SIGNALING_KIND = 24393;
 export const DISCOVERY_KIND = 34393;
-export const D_TAG_ID = "pulsar-tunnel";
+export const D_TAG_ID = 'pulsar-tunnel';
 export const DISCOVERY_LIMIT = 20;
 export const SIGNALING_SINCE_GRACE_SECONDS = 5;
 export const SIGNAL_ENCRYPTION_VERSION = 1;
@@ -25,7 +22,7 @@ export interface NostrEvent {
   sig?: string;
 }
 
-export type UnsignedNostrEvent = Omit<NostrEvent, "id" | "sig">;
+export type UnsignedNostrEvent = Omit<NostrEvent, 'id' | 'sig'>;
 
 export interface SignedNostrEvent extends UnsignedNostrEvent {
   id: string;
@@ -36,24 +33,24 @@ export interface NostrFilter {
   ids?: string[];
   authors?: string[];
   kinds?: number[];
-  "#d"?: string[];
-  "#p"?: string[];
+  '#d'?: string[];
+  '#p'?: string[];
   since?: number;
   until?: number;
   limit?: number;
 }
 
 export type NostrOutgoingMsg =
-  | ["EVENT", SignedNostrEvent]
-  | ["REQ", string, NostrFilter]
-  | ["CLOSE", string];
+  | ['EVENT', SignedNostrEvent]
+  | ['REQ', string, NostrFilter]
+  | ['CLOSE', string];
 
 export type NostrIncomingMsg =
-  | ["EVENT", string, SignedNostrEvent]
-  | ["EOSE", string]
-  | ["NOTICE", string]
-  | ["OK", string, boolean, string]
-  | ["CLOSED", string, string];
+  | ['EVENT', string, SignedNostrEvent]
+  | ['EOSE', string]
+  | ['NOTICE', string]
+  | ['OK', string, boolean, string]
+  | ['CLOSED', string, string];
 
 export interface NostrKeypair {
   seckey: string;
@@ -61,7 +58,7 @@ export interface NostrKeypair {
 }
 
 export interface SignalingPayload {
-  type: "offer" | "answer" | "ice";
+  type: 'offer' | 'answer' | 'ice';
   sdp?: string;
   candidate?: string;
   sdpMid?: string;
@@ -82,13 +79,13 @@ export function nostrTunnelId(pubkeyHex: string): string {
 
 export function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes)
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 export function hexToBytes(hex: string): Uint8Array {
   if (hex.length % 2 !== 0 || /[^0-9a-f]/i.test(hex)) {
-    throw new Error("Invalid hex string");
+    throw new Error('Invalid hex string');
   }
 
   const bytes = new Uint8Array(hex.length / 2);
@@ -106,36 +103,20 @@ export function generateNostrKeypair(): NostrKeypair {
   };
 }
 
-export function hasTag(
-  event: NostrEvent,
-  name: string,
-  value: string,
-): boolean {
+export function hasTag(event: NostrEvent, name: string, value: string): boolean {
   return event.tags.some((tag) => tag[0] === name && tag[1] === value);
 }
 
 export function isAddressedTo(event: NostrEvent, pubkey: string): boolean {
-  return hasTag(event, "p", pubkey);
+  return hasTag(event, 'p', pubkey);
 }
 
 export function serializeEvent(event: UnsignedNostrEvent): string {
-  return JSON.stringify([
-    0,
-    event.pubkey,
-    event.created_at,
-    event.kind,
-    event.tags,
-    event.content,
-  ]);
+  return JSON.stringify([0, event.pubkey, event.created_at, event.kind, event.tags, event.content]);
 }
 
-export async function computeEventId(
-  event: UnsignedNostrEvent,
-): Promise<string> {
-  const hash = await crypto.subtle.digest(
-    "SHA-256",
-    textEncoder.encode(serializeEvent(event)),
-  );
+export async function computeEventId(event: UnsignedNostrEvent): Promise<string> {
+  const hash = await crypto.subtle.digest('SHA-256', textEncoder.encode(serializeEvent(event)));
   return bytesToHex(new Uint8Array(hash));
 }
 
@@ -148,16 +129,10 @@ export async function signNostrEvent(
   return { ...event, id, sig: bytesToHex(sig) };
 }
 
-export async function verifyNostrEvent(
-  event: SignedNostrEvent,
-): Promise<boolean> {
+export async function verifyNostrEvent(event: SignedNostrEvent): Promise<boolean> {
   try {
-    if (event.id !== await computeEventId(event)) return false;
-    return schnorr.verify(
-      hexToBytes(event.sig),
-      hexToBytes(event.id),
-      hexToBytes(event.pubkey),
-    );
+    if (event.id !== (await computeEventId(event))) return false;
+    return schnorr.verify(hexToBytes(event.sig), hexToBytes(event.id), hexToBytes(event.pubkey));
   } catch {
     return false;
   }
@@ -168,7 +143,7 @@ export function makeDiscoveryEvent(pubkey: string): UnsignedNostrEvent {
     pubkey,
     created_at: nowSeconds(),
     kind: DISCOVERY_KIND,
-    tags: [["d", D_TAG_ID]],
+    tags: [['d', D_TAG_ID]],
     content: JSON.stringify({
       tunnel_code: tunnelCodeFromPubkey(pubkey),
     }),
@@ -184,7 +159,7 @@ export function makeSignalEvent(
     pubkey,
     created_at: nowSeconds(),
     kind: SIGNALING_KIND,
-    tags: [["p", peerPubkey]],
+    tags: [['p', peerPubkey]],
     content,
   };
 }
@@ -192,7 +167,7 @@ export function makeSignalEvent(
 export function makeSignalingFilter(pubkey: string): NostrFilter {
   return {
     kinds: [SIGNALING_KIND],
-    "#p": [pubkey],
+    '#p': [pubkey],
     since: nowSeconds() - SIGNALING_SINCE_GRACE_SECONDS,
   };
 }
@@ -200,27 +175,23 @@ export function makeSignalingFilter(pubkey: string): NostrFilter {
 export function makeDiscoveryFilter(): NostrFilter {
   return {
     kinds: [DISCOVERY_KIND],
-    "#d": [D_TAG_ID],
+    '#d': [D_TAG_ID],
     limit: DISCOVERY_LIMIT,
   };
 }
 
 export function sendNostrEvent(ws: WebSocket, event: SignedNostrEvent): void {
-  const msg: NostrOutgoingMsg = ["EVENT", event];
+  const msg: NostrOutgoingMsg = ['EVENT', event];
   ws.send(JSON.stringify(msg));
 }
 
-export function sendNostrReq(
-  ws: WebSocket,
-  subId: string,
-  filter: NostrFilter,
-): void {
-  const msg: NostrOutgoingMsg = ["REQ", subId, filter];
+export function sendNostrReq(ws: WebSocket, subId: string, filter: NostrFilter): void {
+  const msg: NostrOutgoingMsg = ['REQ', subId, filter];
   ws.send(JSON.stringify(msg));
 }
 
 export function closeNostrReq(ws: WebSocket, subId: string): void {
-  const msg: NostrOutgoingMsg = ["CLOSE", subId];
+  const msg: NostrOutgoingMsg = ['CLOSE', subId];
   try {
     ws.send(JSON.stringify(msg));
   } catch {
@@ -229,11 +200,11 @@ export function closeNostrReq(ws: WebSocket, subId: string): void {
 }
 
 export function parseNostrMessage(data: unknown): NostrIncomingMsg | null {
-  if (typeof data !== "string") return null;
+  if (typeof data !== 'string') return null;
 
   try {
     const msg = JSON.parse(data);
-    if (!Array.isArray(msg) || typeof msg[0] !== "string") return null;
+    if (!Array.isArray(msg) || typeof msg[0] !== 'string') return null;
     return msg as NostrIncomingMsg;
   } catch {
     return null;
@@ -248,7 +219,7 @@ export async function encryptSignal(
   const key = await getSignalKey(hexToBytes(seckeyHex), hexToBytes(pubkeyHex));
   const nonce = crypto.getRandomValues(new Uint8Array(12));
   const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: nonce, tagLength: 128 },
+    { name: 'AES-GCM', iv: nonce, tagLength: 128 },
     key,
     toArrayBuffer(textEncoder.encode(plaintext)),
   );
@@ -266,7 +237,7 @@ export async function decryptSignal(
   pubkeyHex: string,
 ): Promise<string> {
   const raw = base64ToBytes(ciphertextB64);
-  if (raw.length < 13) throw new Error("Ciphertext too short");
+  if (raw.length < 13) throw new Error('Ciphertext too short');
   if (raw[0] !== SIGNAL_ENCRYPTION_VERSION) {
     throw new Error(`Unsupported signal encryption version ${raw[0]}`);
   }
@@ -275,17 +246,14 @@ export async function decryptSignal(
   const nonce = raw.slice(1, 13);
   const ciphertext = raw.slice(13);
   const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: nonce, tagLength: 128 },
+    { name: 'AES-GCM', iv: nonce, tagLength: 128 },
     key,
     toArrayBuffer(ciphertext),
   );
   return textDecoder.decode(decrypted);
 }
 
-function getSharedXOnly(
-  seckey: Uint8Array,
-  pubkeyXOnly: Uint8Array,
-): Uint8Array {
+function getSharedXOnly(seckey: Uint8Array, pubkeyXOnly: Uint8Array): Uint8Array {
   const compressed = new Uint8Array(33);
   compressed[0] = 0x02;
   compressed.set(pubkeyXOnly, 1);
@@ -295,35 +263,32 @@ function getSharedXOnly(
   return new Uint8Array(sharedPoint.toRawBytes(false).slice(1, 33));
 }
 
-async function getSignalKey(
-  seckeyBytes: Uint8Array,
-  pubkeyBytes: Uint8Array,
-): Promise<CryptoKey> {
+async function getSignalKey(seckeyBytes: Uint8Array, pubkeyBytes: Uint8Array): Promise<CryptoKey> {
   const hkdfKey = await crypto.subtle.importKey(
-    "raw",
+    'raw',
     toArrayBuffer(getSharedXOnly(seckeyBytes, pubkeyBytes)),
-    "HKDF",
+    'HKDF',
     false,
-    ["deriveKey"],
+    ['deriveKey'],
   );
 
   return crypto.subtle.deriveKey(
     {
-      name: "HKDF",
-      hash: "SHA-256",
+      name: 'HKDF',
+      hash: 'SHA-256',
       salt: new ArrayBuffer(0),
-      info: toArrayBuffer(textEncoder.encode("pulsar-nostr-signal-v1")),
+      info: toArrayBuffer(textEncoder.encode('pulsar-nostr-signal-v1')),
     },
     hkdfKey,
-    { name: "AES-GCM", length: 256 },
+    { name: 'AES-GCM', length: 256 },
     false,
-    ["encrypt", "decrypt"],
+    ['encrypt', 'decrypt'],
   );
 }
 
 function bytesToBigInt(bytes: Uint8Array): bigint {
-  let hex = "";
-  for (const byte of bytes) hex += byte.toString(16).padStart(2, "0");
+  let hex = '';
+  for (const byte of bytes) hex += byte.toString(16).padStart(2, '0');
   return BigInt(`0x${hex}`);
 }
 
@@ -334,7 +299,7 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
+  let binary = '';
   const chunkSize = 0x8000;
   for (let i = 0; i < bytes.length; i += chunkSize) {
     binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));

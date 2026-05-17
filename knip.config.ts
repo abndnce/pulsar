@@ -9,8 +9,7 @@ const config: KnipConfig = {
     unlisted: 'off',
   },
   compilers: {
-    css: (text: string) =>
-      [...text.matchAll(/(?<=@)import[^;]+/g)].join('\n'),
+    css: (text: string) => [...text.matchAll(/(?<=@)import[^;]+/g)].join('\n'),
   },
   workspaces: {
     'packages/client': {

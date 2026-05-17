@@ -1,25 +1,21 @@
-import {
-  NOSTR_RELAYS,
-  nostrTunnelId,
-  tunnelCodeFromPubkey,
-} from "../core/nostr.ts";
-import { checkPort } from "./lib/natCheck.ts";
-import { openPort, type PortMapping } from "./lib/upnp.ts";
-import { PulsarDirectServer } from "./lib/connection/direct.ts";
-import { PulsarNostrServer } from "./lib/connection/nostr.ts";
-import { wireTunnel } from "./lib/tunnel.ts";
+import { NOSTR_RELAYS, nostrTunnelId, tunnelCodeFromPubkey } from '../core/nostr.ts';
+import { checkPort } from './lib/natCheck.ts';
+import { openPort, type PortMapping } from './lib/upnp.ts';
+import { PulsarDirectServer } from './lib/connection/direct.ts';
+import { PulsarNostrServer } from './lib/connection/nostr.ts';
+import { wireTunnel } from './lib/tunnel.ts';
 
 const PORT = 4393;
 
 // ── Try Pulsar Direct mode (requires --unstable-net) ───────────────
 
 try {
-  if (typeof Deno.listenDatagram !== "function") {
-    throw new Error("Deno.listenDatagram not available (need --unstable-net)");
+  if (typeof Deno.listenDatagram !== 'function') {
+    throw new Error('Deno.listenDatagram not available (need --unstable-net)');
   }
 
   console.log(`Setting up port ${PORT}...`);
-  const socket = Deno.listenDatagram({ port: PORT, transport: "udp" });
+  const socket = Deno.listenDatagram({ port: PORT, transport: 'udp' });
 
   // ── NAT / UPnP ──────────────────────────────────────────────────
 
@@ -30,10 +26,10 @@ try {
     console.log(`↪️ Trying UPnP to forward port ${PORT}...`);
     try {
       mapping = await openPort(PORT);
-      console.log("↪️ UPnP mapping created, re-checking...");
+      console.log('↪️ UPnP mapping created, re-checking...');
       result = await checkPort(socket, PORT);
       if (result.isPublic) {
-        console.log("↪️ UPnP good");
+        console.log('↪️ UPnP good');
       } else {
         await mapping.close();
         mapping = undefined;
@@ -49,7 +45,7 @@ try {
     console.log(
       `❌ Failed to set up Pulsar Direct. Tried to host ${PORT} at ${result.publicAddress?.ip}:${result.publicAddress?.port}, failed as ${result.reason}.`,
     );
-    throw new Error("Direct mode unavailable");
+    throw new Error('Direct mode unavailable');
   }
 
   const publicIp = result.publicAddress.ip;
@@ -62,19 +58,17 @@ try {
 
   server.onconnection = (conn) => {
     console.log(`[webrtc-direct] client connected!`);
-    console.log(
-      `[webrtc-direct] keepalive channel state: ${conn.keepalive.readyState}`,
-    );
+    console.log(`[webrtc-direct] keepalive channel state: ${conn.keepalive.readyState}`);
 
     wireTunnel(conn);
 
     conn.keepalive.onclose = () => {
-      console.log("[webrtc-direct] keepalive channel closed");
+      console.log('[webrtc-direct] keepalive channel closed');
     };
   };
 
   server.onerror = (err) => {
-    console.error("[webrtc-direct] server error:", err);
+    console.error('[webrtc-direct] server error:', err);
   };
 
   // Keep the process alive
@@ -84,7 +78,7 @@ try {
   console.log(`↪️ Pulsar Direct unavailable: ${directErr}`);
 
   // ── Fall back to Nostr signaling ────────────────────────────────
-  console.log("↪️ Falling back to Nostr relay signaling...");
+  console.log('↪️ Falling back to Nostr relay signaling...');
   const nostrServer = new PulsarNostrServer();
 
   try {
@@ -102,12 +96,12 @@ try {
       wireTunnel(conn);
 
       conn.keepalive.onclose = () => {
-        console.log("[nostr] keepalive channel closed");
+        console.log('[nostr] keepalive channel closed');
       };
     };
 
     nostrServer.onerror = (err) => {
-      console.error("[nostr] server error:", err);
+      console.error('[nostr] server error:', err);
     };
 
     // Keep the process alive
