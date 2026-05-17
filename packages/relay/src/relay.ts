@@ -410,11 +410,12 @@ export class PulsarRelay {
       }
     };
 
-    // Generate tunnel code
+    // Generate tunnel code from pubkey
     const seckey = secp256k1.utils.randomPrivateKey();
     const fullPub = secp256k1.getPublicKey(seckey, true);
     const pubkey = fullPub.slice(1);
-    this._tunnelCode = bytesToHex(pubkey).slice(0, 8);
+    const pubkeyHex = bytesToHex(pubkey);
+    this._tunnelCode = "pulsar" + pubkeyHex.slice(0, 4);
 
     this.setPhase("ready", "Relay is active");
   }

@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -127,7 +131,6 @@ jobs:
             -f sha="$GITHUB_SHA"
 
           gh release create "$TAG" \
-            --verify-tag \
             --latest \
             --title "$TAG" \
             pulsar-server-linux-arm64 \

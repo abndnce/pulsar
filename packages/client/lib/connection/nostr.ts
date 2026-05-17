@@ -377,11 +377,76 @@ class NostrClientConnection implements PulsarClientConnection {
 // ── connectNostr ──────────────────────────────────────────────────
 
 /**
+ * Find a Pulsar server via discovery events.
+ *
+ * If `pubkeyPrefix` is given (4 hex chars), returns the first server
+ * whose pubkey starts with that prefix. Otherwise returns any server.
+ */
+async function findServer(
+  ws: WebSocket,
+  pubkeyPrefix?: string,
+  timeoutMs = 15_000,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      ws.send(JSON.stringify(["CLOSE", "pulsar-discover"]));
+      reject(
+        new Error(
+          pubkeyPrefix
+            ? `No Pulsar server with tunnel code "pulsar${pubkeyPrefix}" found`
+            : "No Pulsar server found on Nostr relay",
+        ),
+      );
+    }, timeoutMs);
+
+    const subId = "pulsar-discover";
+    ws.send(
+      JSON.stringify([
+        "REQ",
+        subId,
+        { kinds: [DISCOVERY_KIND], "#d": [D_TAG_ID], limit: 0 },
+      ]),
+    );
+
+    const onMessage = (event: MessageEvent) => {
+      let msg: any[];
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      if (msg[0] === "EVENT" && msg[1] === subId) {
+        const ev = msg[2] as SignedNostrEvent;
+        if (pubkeyPrefix) {
+          if (ev.pubkey.startsWith(pubkeyPrefix)) {
+            clearTimeout(timeout);
+            ws.removeEventListener("message", onMessage);
+            ws.send(JSON.stringify(["CLOSE", subId]));
+            resolve(ev.pubkey);
+          }
+        } else {
+          // Return the first discovery event
+          clearTimeout(timeout);
+          ws.removeEventListener("message", onMessage);
+          ws.send(JSON.stringify(["CLOSE", subId]));
+          resolve(ev.pubkey);
+        }
+      }
+    };
+
+    ws.addEventListener("message", onMessage);
+  });
+}
+
+/**
  * Establish a Pulsar tunnel via Nostr relay signaling.
  *
  * 1. Connects to a Nostr relay (tries nostr.data.haus first,
  *    then kotukonostr.onrender.com)
- * 2. Looks up the server's discovery event (Kind 38000, d="pulsar-server")
+ * 2. Looks up the server's discovery event (Kind 38000, d="pulsar-server").
+ *    If `tunnelCode` is given (e.g. "pulsara3f2"), filters to the server
+ *    whose pubkey begins with the 4-char suffix after "pulsar".
  * 3. Generates an ephemeral client keypair
  * 4. Creates a WebRTC offer
  * 5. Encrypts the offer and sends via a Kind 28000 ephemeral event
@@ -389,29 +454,22 @@ class NostrClientConnection implements PulsarClientConnection {
  * 7. Sets the answer as remote description
  * 8. Returns the connected PulsarClientConnection
  */
-export async function connectNostr(): Promise<PulsarClientConnection> {
+export async function connectNostr(tunnelCode?: string): Promise<PulsarClientConnection> {
   // 1. Connect to a relay
   const ws = await connectToAnyRelay();
 
   // 2. Look up the server
-  console.log("[nostr] Looking up Pulsar server...");
-  const discoveryEvent = await waitForEvent(
-    ws,
-    "pulsar-discover",
-    {
-      kinds: [DISCOVERY_KIND],
-      "#d": [D_TAG_ID],
-      limit: 1,
-    },
-    15_000,
+  const pubkeyPrefix = tunnelCode
+    ? tunnelCode.replace(/^pulsar/, "").slice(0, 4)
+    : undefined;
+
+  console.log(
+    "[nostr] Looking up Pulsar server" +
+      (pubkeyPrefix ? ` (tunnel ${tunnelCode})` : "") +
+      "...",
   );
 
-  if (!discoveryEvent) {
-    ws.close();
-    throw new Error("No Pulsar server found on Nostr relay");
-  }
-
-  const serverPubkey = discoveryEvent.pubkey;
+  const serverPubkey = await findServer(ws, pubkeyPrefix);
   console.log(`[nostr] Found server: ${serverPubkey.slice(0, 16)}...`);
 
   // 3. Generate client keypair

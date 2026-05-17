@@ -3,6 +3,7 @@
   "specifiers": {
     "npm:@noble/curves@^1.8.1": "1.9.7",
     "npm:@types/node@^25.8.0": "25.8.0",
+    "npm:cachedir@^2.4.0": "2.4.0",
     "npm:werift@*": "0.22.9"
   },
   "npm": {
@@ -192,6 +193,9 @@
         "ieee754"
       ]
     },
+    "cachedir@2.4.0": {
+      "integrity": "sha512-9EtFOZR8g22CL7BWjJ9BUx1+A/djkofnyW3aOXZORNW2kxoUpx2h+uN2cOqwPmFhnpVmxg+KW2OjOSgChTEvsQ=="
+    },
     "date-fns@2.30.0": {
       "integrity": "sha512-fnULvOpxnC5/Vg3NCiWelDsLiUc9bRwAPs/+LfTLNvetFCtCTN+yQz15C/fs4AwX1R9K5GLtLfn8QW+dWisaAw==",
       "dependencies": [
@@ -376,6 +380,11 @@
     "dependencies": [
       "npm:@noble/curves@^1.8.1",
       "npm:@types/node@^25.8.0"
-    ]
+    ],
+    "packageJson": {
+      "dependencies": [
+        "npm:cachedir@^2.4.0"
+      ]
+    }
   }
 }

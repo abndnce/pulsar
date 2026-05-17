@@ -5,6 +5,7 @@ import {
   SIGNALING_KIND,
   DISCOVERY_KIND,
   D_TAG_ID,
+  tunnelCodeFromPubkey,
   type SignedNostrEvent,
   type NostrFilter,
 } from "../../../core/nostr.ts";
@@ -276,6 +277,7 @@ export class PulsarNostrServer {
     this._pubkey = keypair.pubkey;
 
     console.log(`[nostr] Server pubkey: ${this._pubkey}`);
+    console.log(`[nostr] Tunnel code: ${tunnelCodeFromPubkey(this._pubkey)}`);
 
     // Connect to all relays in parallel
     const errors: Error[] = [];

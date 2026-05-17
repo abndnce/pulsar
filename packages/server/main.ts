@@ -1,3 +1,4 @@
+import { tunnelCodeFromPubkey } from "../core/nostr.ts";
 import { checkPort } from "./lib/natCheck.ts";
 import { openPort, type PortMapping } from "./lib/upnp.ts";
 import { PulsarDirectServer } from "./lib/connection/direct.ts";
@@ -86,6 +87,7 @@ try {
     const { pubkey } = await nostrServer.start();
     console.log(`✅ Pulsar Nostr mode ready`);
     console.log(`Server pubkey: ${pubkey}`);
+    console.log(`Tunnel code: ${tunnelCodeFromPubkey(pubkey)}`);
     console.log(`Listening on relays:`);
     console.log(`  - wss://nostr.data.haus`);
     console.log(`  - wss://kotukonostr.onrender.com`);

@@ -17,6 +17,11 @@ export const DISCOVERY_KIND = 38000;
 /** The `d` tag identifier for the Pulsar server discovery event. */
 export const D_TAG_ID = "pulsar-server";
 
+/** Derive a human-readable tunnel code from a server's 32-byte x-only pubkey. */
+export function tunnelCodeFromPubkey(pubkeyHex: string): string {
+  return "pulsar" + pubkeyHex.slice(0, 4);
+}
+
 // ── Nostr event types ─────────────────────────────────────────────
 
 export interface NostrEvent {
