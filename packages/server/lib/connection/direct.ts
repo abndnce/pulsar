@@ -20,7 +20,8 @@ import {
   PULSAR_CERT_PEM,
   PULSAR_FINGERPRINT,
   PULSAR_SIGNATURE_HASH,
-} from "../../../core/credentials.ts";
+  KEEPALIVE_LABEL,
+} from "../../../core/constants.ts";
 import type { PulsarServerConnection } from "./types.ts";
 
 // ── STUN ─────────────────────────────────────────────────────────
@@ -105,6 +106,9 @@ class PeerTransport {
 // ── PulsarDirectConnection ───────────────────────────────────────
 
 export class PulsarDirectConnection implements PulsarServerConnection {
+  /** Set of all active TCP sockets created for tunnel channels. */
+  readonly tcpSockets = new Set<Deno.Conn>();
+
   constructor(
     public readonly dtlsTransport: RTCDtlsTransport,
     public readonly sctpTransport: RTCSctpTransport,
@@ -112,7 +116,22 @@ export class PulsarDirectConnection implements PulsarServerConnection {
     private _transport: PeerTransport,
   ) {}
 
+  /** Register a TCP socket for lifecycle cleanup. */
+  trackSocket(socket: Deno.Conn): void {
+    this.tcpSockets.add(socket);
+  }
+
   async close() {
+    // Close all tunnel TCP sockets
+    for (const sock of this.tcpSockets) {
+      try {
+        sock.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.tcpSockets.clear();
+
     try {
       this.keepalive.close();
     } catch {}
@@ -177,7 +196,7 @@ async function startSession(
   const keepalive = new RTCDataChannel(
     sctpTransport as any,
     new RTCDataChannelParameters({
-      label: "keepalive",
+      label: KEEPALIVE_LABEL,
       ordered: true,
       id: 0,
       negotiated: true,
@@ -185,12 +204,16 @@ async function startSession(
   );
   keepalive.onopen = () => console.log("[webrtc-direct] keepalive DC open");
 
-  return new PulsarDirectConnection(
+  // ── Build connection object ──
+
+  const conn = new PulsarDirectConnection(
     dtlsTransport,
     sctpTransport,
     keepalive,
     transport,
   );
+
+  return conn;
 }
 
 // ── PulsarDirectServer ───────────────────────────────────────────

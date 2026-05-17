@@ -1,6 +1,7 @@
 import { checkPort } from "./lib/natCheck.ts";
 import { openPort, type PortMapping } from "./lib/upnp.ts";
 import { PulsarDirectServer } from "./lib/connection/direct.ts";
+import { wireTunnel } from "./lib/tunnel.ts";
 
 const PORT = 42069;
 
@@ -53,6 +54,9 @@ server.onconnection = (conn) => {
   console.log(
     `[webrtc-direct] keepalive channel state: ${conn.keepalive.readyState}`,
   );
+
+  // Wire the data channel → TCP tunnel bridge
+  wireTunnel(conn);
 
   conn.keepalive.onclose = () => {
     console.log("[webrtc-direct] keepalive channel closed");

@@ -2,7 +2,8 @@ import {
   PULSAR_UFRAG,
   PULSAR_PWD,
   PULSAR_FINGERPRINT,
-} from "../../../core/credentials.ts";
+  KEEPALIVE_LABEL,
+} from "../../../core/constants.ts";
 import type { PulsarClientConnection } from "./types.ts";
 
 // ── connectDirect ─────────────────────────────────────────────────
@@ -14,7 +15,8 @@ import type { PulsarClientConnection } from "./types.ts";
  *
  * @param host  Server IP address
  * @param port  Server UDP port
- * @returns A connected PulsarClientConnection with an open keepalive channel.
+ * @returns A connected PulsarClientConnection with an open keepalive channel
+ *          and a `connect()` helper for opening socket tunnels.
  */
 export async function connectDirect(
   host: string,
@@ -23,7 +25,7 @@ export async function connectDirect(
   const pc = new RTCPeerConnection();
 
   // Create the keepalive data channel (mandated by Pulsar spec)
-  const keepalive = pc.createDataChannel("keepalive", {
+  const keepalive = pc.createDataChannel(KEEPALIVE_LABEL, {
     ordered: true,
   });
 

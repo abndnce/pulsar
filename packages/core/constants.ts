@@ -27,3 +27,11 @@ export const PULSAR_FINGERPRINT =
 
 // werift's signatureHash config for the fixed certificate
 export const PULSAR_SIGNATURE_HASH = { hash: 4, signature: 3 } as const;
+
+// ── Tunnel protocol ───────────────────────────────────────────────
+
+/** Label prefix for socket tunnel data channels. */
+export const SOCKET_PREFIX = "socket/";
+
+/** Label for the mandatory keepalive data channel. */
+export const KEEPALIVE_LABEL = "keepalive";
