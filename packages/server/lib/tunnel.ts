@@ -273,13 +273,10 @@ export function wireTunnel(target: TunnelWireTarget): void {
 
   // ── Wire incoming data channels → TCP bridge ──
 
-  const sctp: any = sctpTransport;
-  const dataChannelEvent = sctp.dataChannel as
-    | { subscribe?: (fn: (ch: RTCDataChannel) => void) => void; on?: (fn: (ch: RTCDataChannel) => void) => void }
-    | undefined;
+  const onDataChannel = sctpTransport.onDataChannel;
 
-  if (dataChannelEvent) {
-    console.log("[Tunnel] Subscribing to incoming data channels");
+  if (onDataChannel && typeof onDataChannel.subscribe === "function") {
+    console.log("[Tunnel] Subscribing to incoming data channels via onDataChannel");
     const handler = (channel: RTCDataChannel) => {
       console.log(
         `[Tunnel] Data channel received: label="${channel.label}", id=${channel.id}`,
@@ -288,22 +285,9 @@ export function wireTunnel(target: TunnelWireTarget): void {
         console.error(`[Tunnel] Channel error: ${err.message}`);
       });
     };
-
-    if (typeof dataChannelEvent.subscribe === "function") {
-      dataChannelEvent.subscribe(handler);
-    } else if (typeof dataChannelEvent.on === "function") {
-      dataChannelEvent.on(handler);
-    } else {
-      console.log("[Tunnel] Falling back to ondatachannel property");
-      (sctp as any).ondatachannel = (event: { channel: RTCDataChannel }) => {
-        console.log(
-          `[Tunnel] Data channel via ondatachannel: label="${event.channel.label}", id=${event.channel.id}`,
-        );
-        handleDataChannel(event.channel, (s) => target.trackSocket(s));
-      };
-    }
+    onDataChannel.subscribe(handler);
   } else {
-    console.warn("[Tunnel] No dataChannel event source available on SCTP transport");
+    console.warn("[Tunnel] No onDataChannel event source available on SCTP transport");
   }
 
   // ── Auto-cleanup on DTLS disconnect ──
