@@ -19,7 +19,15 @@ export const D_TAG_ID = "pulsar-tunnel";
 
 /** Derive a human-readable tunnel code from a server's 32-byte x-only pubkey. */
 export function tunnelCodeFromPubkey(pubkeyHex: string): string {
-  return "pulsar" + pubkeyHex.slice(0, 4);
+  return pubkeyHex.slice(0, 4);
+}
+
+/**
+ * Full tunnel identifier used inside Nostr events to prevent confusion
+ * with other services sharing the same relay.
+ */
+export function nostrTunnelId(pubkeyHex: string): string {
+  return "pulsar" + tunnelCodeFromPubkey(pubkeyHex);
 }
 
 // ── Nostr event types ─────────────────────────────────────────────

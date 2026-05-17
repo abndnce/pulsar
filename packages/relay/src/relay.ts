@@ -415,7 +415,7 @@ export class PulsarRelay {
     const fullPub = secp256k1.getPublicKey(seckey, true);
     const pubkey = fullPub.slice(1);
     const pubkeyHex = bytesToHex(pubkey);
-    this._tunnelCode = "pulsar" + pubkeyHex.slice(0, 4);
+    this._tunnelCode = pubkeyHex.slice(0, 4);
 
     this.setPhase("ready", "Relay is active");
   }

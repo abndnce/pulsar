@@ -464,8 +464,8 @@ export async function connectNostr(tunnelCode?: string): Promise<PulsarClientCon
     : undefined;
 
   console.log(
-    "[nostr] Looking up Pulsar server" +
-      (pubkeyPrefix ? ` (tunnel ${tunnelCode})` : "") +
+    "[nostr] Looking up Pulsar tunnel" +
+      (pubkeyPrefix ? ` (code ${tunnelCode})` : "") +
       "...",
   );
 

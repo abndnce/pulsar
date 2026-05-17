@@ -88,6 +88,7 @@ try {
     console.log(`✅ Pulsar Nostr mode ready`);
     console.log(`Server pubkey: ${pubkey}`);
     console.log(`Tunnel code: ${tunnelCodeFromPubkey(pubkey)}`);
+    console.log(`Nostr tunnel ID: pulsar${tunnelCodeFromPubkey(pubkey)}`);
     console.log(`Listening on relays:`);
     console.log(`  - wss://nostr.data.haus`);
     console.log(`  - wss://kotukonostr.onrender.com`);
