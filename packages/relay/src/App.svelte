@@ -95,7 +95,7 @@
     {:else if wispPhase === 'connecting'}
       <div class="wisp-status">
         <span class="wisp-status-icon connecting"></span>
-        <span class="wisp-status-text">Connecting to Wisp server\u2026</span>
+        <span class="wisp-status-text">Connecting to Wisp server...</span>
       </div>
     {:else if wispPhase === 'connected'}
       <div class="wisp-connected">
