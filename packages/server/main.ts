@@ -50,7 +50,7 @@ try {
 
   const publicIp = result.publicAddress.ip;
   console.log(`✅ Pulsar Direct ready`);
-  console.log(`Connect to: ${publicIp}:${PORT}`);
+  console.log(`Connect to: ${publicIp}`);
 
   // ── Start Pulsar direct server ──────────────────────────────────
 
@@ -70,12 +70,9 @@ try {
   server.onerror = (err) => {
     console.error('[webrtc-direct] server error:', err);
   };
-
-  // Keep the process alive
-  await new Promise(() => {});
 } catch (err) {
   const directErr = err instanceof Error ? err.message : String(err);
-  console.log(`↪️ Pulsar Direct unavailable: ${directErr}`);
+  console.log(`↪️ ${directErr}`);
 
   // ── Fall back to Nostr signaling ────────────────────────────────
   console.log('↪️ Falling back to Nostr relay signaling...');
@@ -84,11 +81,10 @@ try {
   try {
     const { pubkey } = await nostrServer.start();
     console.log(`✅ Pulsar Nostr mode ready`);
-    console.log(`Server pubkey: ${pubkey}`);
-    console.log(`Tunnel code: ${tunnelCodeFromPubkey(pubkey)}`);
-    console.log(`Nostr tunnel ID: ${nostrTunnelId(pubkey)}`);
     console.log(`Listening on relays:`);
     for (const relay of NOSTR_RELAYS) console.log(`  - ${relay}`);
+    console.log(`Server pubkey: ${pubkey}`);
+    console.log(`Tunnel code: ${tunnelCodeFromPubkey(pubkey)}`);
     console.log(`Waiting for client connections...`);
 
     nostrServer.onconnection = (conn) => {
@@ -103,9 +99,6 @@ try {
     nostrServer.onerror = (err) => {
       console.error('[nostr] server error:', err);
     };
-
-    // Keep the process alive
-    await new Promise(() => {});
   } catch (nostrErr) {
     console.error(
       `❌ Nostr mode also failed: ${
