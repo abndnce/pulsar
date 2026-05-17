@@ -1,32 +1,27 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import {
-    PulsarRelay,
-    type WispPhase,
-    type NostrPhase,
-    type NostrConnStatus,
-  } from "./relay";
+  import { onMount } from 'svelte';
+  import { PulsarRelay, type WispPhase, type NostrPhase, type NostrConnStatus } from './relay';
 
   const relay = new PulsarRelay();
 
-  let wispUrl = $state("");
-  let nostrPhase = $state<NostrPhase>("connecting");
-  let wispPhase = $state<WispPhase>("disconnected");
-  let wispDetail = $state("");
+  let wispUrl = $state('');
+  let nostrPhase = $state<NostrPhase>('connecting');
+  let wispPhase = $state<WispPhase>('disconnected');
+  let wispDetail = $state('');
   let nostrStatuses = $state<NostrConnStatus[]>([]);
-  let tunnelCode = $state("");
+  let tunnelCode = $state('');
 
   relay.setUpdateCallback((update) => {
     nostrPhase = update.nostrPhase;
     wispPhase = update.wispPhase;
     wispDetail = update.wispDetail;
     nostrStatuses = update.nostrStatuses;
-    tunnelCode = update.tunnelCode ?? "";
+    tunnelCode = update.tunnelCode ?? '';
   });
 
   onMount(() => {
     relay.initNostr().catch((err) => {
-      console.error("Failed to connect Nostr:", err);
+      console.error('Failed to connect Nostr:', err);
     });
   });
 
@@ -43,56 +38,14 @@
   }
 
   const nostrStateLabel: Record<string, string> = {
-    connecting: "Connecting\u2026",
-    connected: "Connected",
-    failed: "Failed",
+    connecting: 'Connecting\u2026',
+    connected: 'Connected',
+    failed: 'Failed',
   };
 </script>
 
 <main>
-  <div class="brand">
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-      <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2" />
-      <circle cx="16" cy="16" r="6" fill="currentColor" />
-      <line
-        x1="16"
-        y1="2"
-        x2="16"
-        y2="10"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-      />
-      <line
-        x1="16"
-        y1="22"
-        x2="16"
-        y2="30"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-      />
-      <line
-        x1="2"
-        y1="16"
-        x2="10"
-        y2="16"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-      />
-      <line
-        x1="22"
-        y1="16"
-        x2="30"
-        y2="16"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-      />
-    </svg>
-    <h1>Pulsar Relay</h1>
-  </div>
+  <h1>Pulsar Relay</h1>
 
   <!-- ===== Nostr card – always visible, deemphasized ===== -->
   <div class="nostr-card">
@@ -108,10 +61,8 @@
         {#each nostrStatuses as s}
           <div class="nostr-relay-item {s.state}">
             <span class="nostr-dot"></span>
-            <span class="nostr-relay-url">{s.url.replace("wss://", "")}</span>
-            <span class="nostr-relay-state"
-              >{nostrStateLabel[s.state] ?? s.state}</span
-            >
+            <span class="nostr-relay-url">{s.url.replace('wss://', '')}</span>
+            <span class="nostr-relay-state">{nostrStateLabel[s.state] ?? s.state}</span>
           </div>
         {/each}
       </div>
@@ -120,7 +71,7 @@
 
   <!-- ===== Wisp card – input vs connected ===== -->
   <div class="wisp-card">
-    {#if wispPhase === "disconnected" || wispPhase === "failed"}
+    {#if wispPhase === 'disconnected' || wispPhase === 'failed'}
       <form
         onsubmit={(e) => {
           e.preventDefault();
@@ -140,24 +91,22 @@
         </div>
       </form>
       <p class="wisp-disclaimer">
-        It's inconsiderate to substantively use someone else's Wisp server
-        without getting permission.
+        It's inconsiderate to substantively use someone else's Wisp server without getting
+        permission.
       </p>
-    {:else if wispPhase === "connecting"}
+    {:else if wispPhase === 'connecting'}
       <div class="wisp-status">
         <span class="wisp-status-icon connecting"></span>
         <span class="wisp-status-text">Connecting to Wisp server\u2026</span>
       </div>
-    {:else if wispPhase === "connected"}
+    {:else if wispPhase === 'connected'}
       <div class="wisp-connected">
         <div class="wisp-status-row">
           <span class="wisp-status-icon connected"></span>
           <span class="wisp-status-label">Connected to Wisp</span>
         </div>
         <span class="wisp-server-url">{wispUrl}</span>
-        <button class="wisp-disconnect-btn" onclick={handleWispDisconnect}>
-          Disconnect
-        </button>
+        <button class="wisp-disconnect-btn" onclick={handleWispDisconnect}> Disconnect </button>
       </div>
     {/if}
   </div>
@@ -172,17 +121,12 @@
     gap: 0.75rem;
   }
 
-  .brand {
+  h1 {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.625rem;
-    margin-bottom: 0.5rem;
-    color: var(--m3c-primary);
-  }
-
-  .brand h1 {
     margin: 0;
+    margin-bottom: 0.5rem;
     font-size: 1.5rem;
     font-weight: 600;
     color: var(--m3c-on-surface);
@@ -193,13 +137,7 @@
     background: var(--m3c-surface-container-high);
     border-radius: 0.75rem;
     padding: 0.75rem 1rem;
-    opacity: 0.7;
     font-size: 0.8rem;
-    transition: opacity 0.2s;
-  }
-
-  .nostr-card:hover {
-    opacity: 1;
   }
 
   .nostr-header {
