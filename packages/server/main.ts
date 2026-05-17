@@ -7,6 +7,16 @@ import { wireTunnel } from './lib/tunnel.ts';
 
 const PORT = 4393;
 
+// ── Helpers ────────────────────────────────────────────────────────
+
+function writeLine(msg: string): void {
+  Deno.stdout.writeSync(new TextEncoder().encode(`\r${msg}\n`));
+}
+
+function writeStatus(msg: string): void {
+  Deno.stdout.writeSync(new TextEncoder().encode(`\r${msg}`));
+}
+
 // ── Try Pulsar Direct mode (requires --unstable-net) ───────────────
 
 try {
@@ -14,29 +24,37 @@ try {
     throw new Error('Deno.listenDatagram not available (need --unstable-net)');
   }
 
-  console.log(`Setting up port ${PORT}...`);
   const socket = Deno.listenDatagram({ port: PORT, transport: 'udp' });
 
   // ── NAT / UPnP ──────────────────────────────────────────────────
 
+  writeStatus(`⏳ Checking port ${PORT}...`);
   let result = await checkPort(socket, PORT);
+  writeLine(
+    result.isPublic
+      ? `✅ Port ${PORT} is public (${result.publicAddress!.ip}:${result.publicAddress!.port})`
+      : `❌ Port ${PORT} is not public — ${result.reason}`,
+  );
   let mapping: PortMapping | undefined;
 
   if (!result.isPublic) {
     console.log(`↪️ Trying UPnP to forward port ${PORT}...`);
     try {
       mapping = await openPort(PORT);
-      console.log('↪️ UPnP mapping created, re-checking...');
+      writeStatus(`⏳ Checking port ${PORT} after UPnP mapping created...`);
       result = await checkPort(socket, PORT);
       if (result.isPublic) {
-        console.log('↪️ UPnP good');
+        writeLine(
+          `✅ ${PORT} is public (${result.publicAddress!.ip}:${result.publicAddress!.port})`,
+        );
       } else {
         await mapping.close();
         mapping = undefined;
+        writeLine(`❌ UPnP mapping did not make port ${PORT} public — ${result.reason}`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.log(`↪️ UPnP failed: ${msg}`);
+      writeLine(`❌ UPnP failed: ${msg}`);
     }
   }
 
@@ -49,8 +67,7 @@ try {
   }
 
   const publicIp = result.publicAddress.ip;
-  console.log(`✅ Pulsar Direct ready`);
-  console.log(`Connect to: ${publicIp}`);
+  writeLine(`✅ Pulsar Direct ready on ${publicIp}`);
 
   // ── Start Pulsar direct server ──────────────────────────────────
 
