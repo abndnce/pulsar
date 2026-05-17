@@ -1,4 +1,4 @@
-import { NOSTR_RELAYS, nostrTunnelId, tunnelCodeFromPubkey } from '../core/nostr.ts';
+import { NOSTR_RELAYS, tunnelCodeFromPubkey } from '../core/nostr.ts';
 import { checkPort } from './lib/natCheck.ts';
 import { openPort, type PortMapping } from './lib/upnp.ts';
 import { PulsarDirectServer } from './lib/connection/direct.ts';

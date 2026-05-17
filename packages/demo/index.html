@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Pulsar</title>
+    <script src="./scramjet/scramjet.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #111;
+        color: #fff;
+        font:
+          14px system-ui,
+          sans-serif;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      #bar {
+        display: flex;
+        padding: 6px 10px;
+        background: #1a1a1a;
+        border-bottom: 1px solid #333;
+      }
+      #bar input {
+        flex: 1;
+        background: #000;
+        color: #fff;
+        border: 1px solid #333;
+        border-radius: 4px;
+        padding: 6px 10px;
+        font-size: 13px;
+        outline: none;
+      }
+      #bar input:focus {
+        border-color: #89b4fa;
+      }
+      iframe {
+        flex: 1;
+        width: 100%;
+        border: none;
+        background: #111;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="bar">
+      <input
+        id="url"
+        type="text"
+        placeholder="URL or search..."
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+    <iframe id="frame"></iframe>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

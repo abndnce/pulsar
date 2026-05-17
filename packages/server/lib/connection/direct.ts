@@ -196,7 +196,6 @@ async function startSession(transport: PeerTransport): Promise<PulsarDirectConne
 
 type Session = {
   transport: PeerTransport;
-  connected: boolean;
 };
 
 /**
@@ -246,12 +245,11 @@ export class PulsarDirectServer {
 
           if (!sessions.has(key)) {
             const transport = new PeerTransport(socket, netAddr);
-            const session: Session = { transport, connected: false };
+            const session: Session = { transport };
             sessions.set(key, session);
 
             startSession(transport)
               .then((conn) => {
-                session.connected = true;
                 this.onconnection?.(conn);
               })
               .catch((err) => {

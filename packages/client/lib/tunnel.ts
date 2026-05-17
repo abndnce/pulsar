@@ -170,7 +170,7 @@ class DataChannelSocket extends EventTarget {
  * Pulsar socket data channel, and returns a WebSocket-like adapter.
  */
 export function libcurlTransport(pc: RTCPeerConnection): (url: string) => DataChannelSocket {
-  return (url: string): DataChannelSocket => {
+  return function (url: string): DataChannelSocket {
     // Parse destination from URL path: "wss://host/path" → "path"
     let dest: string;
     try {

@@ -1,13 +1,4 @@
 /**
- * Shared utilities for opening Pulsar socket tunnel data channels.
- *
- * These work with any RTCPeerConnection, regardless of how it was
- * established (direct, nostr, etc.).
- */
-
-import { socketChannelLabel } from '../../core/socket.ts';
-
-/**
  * Wait for an RTCDataChannel to enter the "open" state.
  *
  * Also monitors the RTCPeerConnection for failure/closure, and
@@ -80,23 +71,4 @@ export function waitForDataChannelOpen(
     pc.addEventListener('connectionstatechange', onStateChange);
     signal?.addEventListener('abort', onAbort, { once: true });
   });
-}
-
-/**
- * Create a data channel on the given `pc` with the Pulsar socket label
- * convention (`socket/<hostname>:<port>`) and wait for it to open.
- *
- * This is the low-level primitive used by `connect()` and
- * `libcurlTransport()`.
- */
-export function openSocketChannel(
-  pc: RTCPeerConnection,
-  hostname: string,
-  port: number,
-  timeoutMs?: number,
-  signal?: AbortSignal,
-): Promise<RTCDataChannel> {
-  const label = socketChannelLabel(hostname, port);
-  const channel = pc.createDataChannel(label, { ordered: true });
-  return waitForDataChannelOpen(channel, pc, timeoutMs, signal).then(() => channel);
 }

@@ -1,6 +1,4 @@
-🚧🚧🚧 WIP 🚧🚧🚧
-
-Pulsar is a internet transport. It's powered by WebRTC, so there's no limitations on what and where tunnels have to be. And its specification is one sentence: init with empty `keepalive` channel, send raw TCP over `socket/<hostname:port>` channels, where channel means a DataChannel with `binaryType: "arrayBuffer"` and `ordered: true`.
+Pulsar is a internet transport. It's powered by WebRTC, so there's no limitations on where tunnels have to be. And its specification is one sentence: init with empty `keepalive` channel, send raw TCP over `socket/<hostname:port>` channels, where channel means a DataChannel with `binaryType: "arrayBuffer"` and `ordered: true`.
 
 <details>
 
@@ -8,9 +6,9 @@ Pulsar is a internet transport. It's powered by WebRTC, so there's no limitation
 
 ## The ideal way to specify a tunnel is an IP address, all else follows
 
-An IP address is easy to share and skips the intensive and blockable process of signalling.
+An IP address is easy to share.
 
-We can be much more direct when we use IP addresses. We can use [WebRTC Direct](https://github.com/libp2p/specs/blob/master/webrtc/webrtc-direct.md) instead). We can skip encryption since that's TCP's job.
+We can be much more direct when we use IP addresses. We can use [WebRTC Direct](https://github.com/libp2p/specs/blob/master/webrtc/webrtc-direct.md) instead). WebRTC Direct skips the intensive process of signalling. WebRTC Direct isn't blockable in the same way signalling is. We also get to skip encryption since that's TCP's job.
 
 But without signalling, we have to hardcode a few things:
 
@@ -111,3 +109,17 @@ The server blindly accepts the client's fingerprint (DTLS certificate verificati
 </details>
 
 ## Pulsar servers
+
+Abundance runs an official Pulsar server on a small IONOS box. Just connect to `216.250.119.217`.
+
+But you can run a Pulsar server too, any of these ways:
+
+- Run `npx @abndnce/pulsar-server`
+- Download and run an executable: [Windows](https://github.com/abndnce/pulsar/releases/download/latest/pulsar-server-windows-x64.exe), [Linux](https://github.com/abndnce/pulsar/releases/download/latest/pulsar-server-linux-x64) ([Linux ARM](https://github.com/abndnce/pulsar/releases/download/latest/pulsar-server-linux-arm64)), or [Mac](https://github.com/abndnce/pulsar/releases/download/latest/pulsar-server-mac-arm64) ([Intel Mac](https://github.com/abndnce/pulsar/releases/download/latest/pulsar-server-mac-x64))
+- Go to https://abndnce.github.io/relay/ on a personal device and connect to a Wisp server
+
+## Pulsar clients
+
+Abundance runs an official Pulsar client, [0K](https://github.com/abndnce/0k).
+
+But you can make something that uses Pulsar too. For a simple demo of using `@abndnce/pulsar-client` with libcurl.js and Scramjet, see the [demo package](https://github.com/abndnce/pulsar/tree/main/packages/demo).

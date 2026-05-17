@@ -207,8 +207,8 @@ export class PulsarNostrServer {
       return;
     }
 
-    if (payload.type === 'ice' && payload.candidate) {
-      await this.handleIceCandidate(event.pubkey, payload);
+    if (payload.type === 'answer' && payload.sdp) {
+      return;
     }
   }
 
@@ -273,21 +273,6 @@ export class PulsarNostrServer {
 
     sendNostrEvent(relayWs, replyEvent);
     console.log(`[nostr] Sent encrypted answer to ${clientPubkey.slice(0, 8)}`);
-  }
-
-  private async handleIceCandidate(clientPubkey: string, payload: SignalingPayload): Promise<void> {
-    const pc = this.peerConnections.get(clientPubkey);
-    if (!pc || !payload.candidate) return;
-
-    try {
-      await pc.addIceCandidate({
-        candidate: payload.candidate,
-        sdpMid: payload.sdpMid ?? '0',
-        sdpMLineIndex: payload.sdpMLineIndex ?? 0,
-      });
-    } catch (err) {
-      console.error(`[nostr] Failed to add ICE candidate: ${err}`);
-    }
   }
 
   private publishSigned(event: SignedNostrEvent): void {

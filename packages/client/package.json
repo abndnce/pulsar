@@ -1,7 +1,7 @@
 {
   "name": "@abndnce/pulsar-client",
   "type": "module",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "homepage": "https://github.com/abndnce/pulsar",
   "license": "MIT",
   "exports": {

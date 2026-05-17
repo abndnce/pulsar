@@ -25,12 +25,11 @@ import { WispClient } from './wisp-client';
 
 export type NostrPhase = 'connecting' | 'connected' | 'failed';
 
-export type WispPhase = 'disconnected' | 'connecting' | 'connected' | 'failed';
+export type WispPhase = 'disconnected' | 'connecting' | 'connected';
 
 export type NostrConnStatus = {
   url: string;
   state: 'connecting' | 'connected' | 'failed';
-  error?: string;
 };
 
 export type RelayUpdate = {
@@ -40,13 +39,8 @@ export type RelayUpdate = {
   wispPhase: WispPhase;
 };
 
-type NostrConnection = {
-  ws: WebSocket;
-  url: string;
-};
-
 export class PulsarRelay {
-  private nostrConns: NostrConnection[] = [];
+  private nostrConns: WebSocket[] = [];
   private wisp: WispClient | null = null;
   private keypair: NostrKeypair | null = null;
   private peerConnections = new Map<string, RTCPeerConnection>();
@@ -57,14 +51,6 @@ export class PulsarRelay {
   private tunnelCode: string | undefined;
   private onUpdate: ((update: RelayUpdate) => void) | null = null;
   private initPromise: Promise<void> | null = null;
-
-  get currentTunnelCode() {
-    return this.tunnelCode;
-  }
-
-  get currentNostrStatuses() {
-    return this.nostrStatuses;
-  }
 
   setUpdateCallback(cb: (update: RelayUpdate) => void) {
     this.onUpdate = cb;
@@ -95,7 +81,7 @@ export class PulsarRelay {
     }
 
     await this.publishDiscovery();
-    for (const conn of this.nostrConns) this.subscribeSignaling(conn);
+    for (const ws of this.nostrConns) this.subscribeSignaling(ws);
 
     this.nostrPhase = 'connected';
     this.emit();
@@ -125,7 +111,7 @@ export class PulsarRelay {
     } catch (err) {
       this.wisp?.close();
       this.wisp = null;
-      this.wispPhase = 'failed';
+      this.wispPhase = 'disconnected';
       this.emit();
       throw err;
     }
@@ -161,41 +147,34 @@ export class PulsarRelay {
     this.emit();
 
     await Promise.allSettled(NOSTR_RELAYS.map((url) => this.connectOneNostr(url)));
-    this.emit();
   }
 
   private connectOneNostr(url: string): Promise<void> {
     return new Promise((resolve) => {
       const ws = new WebSocket(url);
       const timeout = setTimeout(() => {
-        this.updateNostrStatus(url, { state: 'failed', error: 'Timed out' });
+        this.updateNostrStatus(url, { state: 'failed' });
         ws.close();
         resolve();
       }, 8_000);
 
       ws.addEventListener('open', () => {
         clearTimeout(timeout);
-        this.nostrConns.push({ ws, url });
-        this.updateNostrStatus(url, { state: 'connected', error: undefined });
+        this.nostrConns.push(ws);
+        this.updateNostrStatus(url, { state: 'connected' });
         resolve();
       });
 
       ws.addEventListener('error', () => {
         clearTimeout(timeout);
-        this.updateNostrStatus(url, {
-          state: 'failed',
-          error: 'Connection error',
-        });
+        this.updateNostrStatus(url, { state: 'failed' });
         resolve();
       });
 
       ws.addEventListener('close', () => {
-        const idx = this.nostrConns.findIndex((conn) => conn.ws === ws);
+        const idx = this.nostrConns.indexOf(ws);
         if (idx !== -1) this.nostrConns.splice(idx, 1);
-        this.updateNostrStatus(url, {
-          state: 'failed',
-          error: 'Disconnected',
-        });
+        this.updateNostrStatus(url, { state: 'failed' });
 
         if (this.nostrPhase === 'connected' && !this.nostrConns.length) {
           this.nostrPhase = 'failed';
@@ -212,20 +191,20 @@ export class PulsarRelay {
       makeDiscoveryEvent(this.keypair.pubkey),
       this.keypair.seckey,
     );
-    for (const conn of this.nostrConns) sendNostrEvent(conn.ws, discovery);
+    for (const ws of this.nostrConns) sendNostrEvent(ws, discovery);
   }
 
-  private subscribeSignaling(conn: NostrConnection): void {
+  private subscribeSignaling(ws: WebSocket): void {
     if (!this.keypair) throw new Error('Missing relay keypair');
 
     const subId = `pulsar-signal-${this.keypair.pubkey.slice(0, 8)}`;
-    sendNostrReq(conn.ws, subId, makeSignalingFilter(this.keypair.pubkey));
+    sendNostrReq(ws, subId, makeSignalingFilter(this.keypair.pubkey));
 
-    conn.ws.addEventListener('message', (event) => {
+    ws.addEventListener('message', (event) => {
       const msg = parseNostrMessage(event.data);
       if (!msg || msg[0] !== 'EVENT' || msg[1] !== subId) return;
 
-      this.handleSignalingEvent(msg[2], conn.ws).catch((err) => {
+      this.handleSignalingEvent(msg[2], ws).catch((err) => {
         console.error('[relay] Failed to handle signaling event', err);
       });
     });
@@ -255,8 +234,8 @@ export class PulsarRelay {
       return;
     }
 
-    if (payload.type === 'ice' && payload.candidate) {
-      await this.handleIceCandidate(event.pubkey, payload);
+    if (payload.type === 'answer' && payload.sdp) {
+      return;
     }
   }
 
@@ -305,18 +284,6 @@ export class PulsarRelay {
       this.keypair.seckey,
     );
     sendNostrEvent(relayWs, answerEvent);
-    this.emit();
-  }
-
-  private async handleIceCandidate(clientPubkey: string, payload: SignalingPayload): Promise<void> {
-    const pc = this.peerConnections.get(clientPubkey);
-    if (!pc || !payload.candidate) return;
-
-    await pc.addIceCandidate({
-      candidate: payload.candidate,
-      sdpMid: payload.sdpMid ?? '0',
-      sdpMLineIndex: payload.sdpMLineIndex ?? 0,
-    });
   }
 
   private handleDataChannel(channel: RTCDataChannel): void {
@@ -380,9 +347,9 @@ export class PulsarRelay {
   }
 
   private closeNostrConnections() {
-    for (const conn of this.nostrConns) {
+    for (const ws of this.nostrConns) {
       try {
-        conn.ws.close();
+        ws.close();
       } catch {
         /* ignore */
       }

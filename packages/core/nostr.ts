@@ -58,11 +58,8 @@ export interface NostrKeypair {
 }
 
 export interface SignalingPayload {
-  type: 'offer' | 'answer' | 'ice';
+  type: 'offer' | 'answer';
   sdp?: string;
-  candidate?: string;
-  sdpMid?: string;
-  sdpMLineIndex?: number;
 }
 
 export function nowSeconds(): number {
@@ -71,10 +68,6 @@ export function nowSeconds(): number {
 
 export function tunnelCodeFromPubkey(pubkeyHex: string): string {
   return pubkeyHex.slice(0, 4);
-}
-
-export function nostrTunnelId(pubkeyHex: string): string {
-  return `pulsar${tunnelCodeFromPubkey(pubkeyHex)}`;
 }
 
 export function bytesToHex(bytes: Uint8Array): string {

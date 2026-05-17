@@ -24,6 +24,14 @@ const config: KnipConfig = {
       entry: ['index.html'],
       project: ['src/**'],
     },
+    'packages/demo': {
+      entry: ['index.html', 'sw.js'],
+      project: ['src/**'],
+      ignoreDependencies: [
+        '@mercuryworkshop/scramjet',
+        '@mercuryworkshop/scramjet-controller',
+      ],
+    },
   },
 };
 

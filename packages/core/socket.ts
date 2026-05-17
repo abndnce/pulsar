@@ -5,15 +5,6 @@ export type SocketDestination = {
   port: number;
 };
 
-export function socketChannelLabel(hostname: string, port: number): string {
-  return `${SOCKET_PREFIX}${formatSocketDestination(hostname, port)}`;
-}
-
-export function formatSocketDestination(hostname: string, port: number): string {
-  const host = hostname.includes(':') && !hostname.startsWith('[') ? `[${hostname}]` : hostname;
-  return `${host}:${port}`;
-}
-
 export function parseSocketDestination(label: string): SocketDestination {
   if (!label.startsWith(SOCKET_PREFIX)) {
     throw new Error(`Unknown channel label "${label}" - expected prefix "${SOCKET_PREFIX}"`);

@@ -69,7 +69,7 @@
 
   <!-- ===== Wisp card – input vs connected ===== -->
   <div class="wisp-card">
-    {#if wispPhase === 'disconnected' || wispPhase === 'failed'}
+    {#if wispPhase === 'disconnected'}
       <form
         onsubmit={(e) => {
           e.preventDefault();

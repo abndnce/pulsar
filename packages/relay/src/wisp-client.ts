@@ -15,8 +15,8 @@ export class WispStream {
 
   constructor(
     readonly streamId: number,
-    readonly hostname: string,
-    readonly port: number,
+    hostname: string,
+    port: number,
     initialBuffer: number,
     private readonly send: (type: number, streamId: number, payload: Uint8Array) => void,
   ) {
