@@ -61,11 +61,7 @@ async function connectToServerRelay(
       const message = err instanceof Error ? err.message : String(err);
       errors.push(`${relayUrl}: ${message}`);
       console.warn(`[nostr] ${relayUrl}: ${message}`);
-      try {
-        ws?.close();
-      } catch {
-        /* ignore */
-      }
+      ws?.close();
     }
   }
 
@@ -118,12 +114,10 @@ async function findServer(
       void (async () => {
         const relayEvent = msg[2];
         if (!(await verifyNostrEvent(relayEvent))) return;
-        if (pubkeyPrefix && !relayEvent.pubkey.startsWith(pubkeyPrefix)) {
-          return;
-        }
+        if (pubkeyPrefix && !relayEvent.pubkey.startsWith(pubkeyPrefix)) return;
 
         finish(() => resolve(relayEvent.pubkey));
-      })().catch(() => {});
+      })();
     };
 
     ws.addEventListener('message', onMessage);
@@ -165,7 +159,7 @@ function waitForSignalEvent(
         if (!isAddressedTo(relayEvent, recipientPubkey)) return;
         if (!(await verifyNostrEvent(relayEvent))) return;
         finish(() => resolve(relayEvent));
-      })().catch(() => {});
+      })();
     };
 
     ws.addEventListener('message', onMessage);

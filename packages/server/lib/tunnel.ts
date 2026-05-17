@@ -224,5 +224,3 @@ export function wireTunnel(target: TunnelWireTarget): void {
     }
   });
 }
-
-export { handleDataChannel, handleSocketChannel, parseSocketDestination as parseDestination };

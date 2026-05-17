@@ -195,7 +195,7 @@ export function closeNostrReq(ws: WebSocket, subId: string): void {
   try {
     ws.send(JSON.stringify(msg));
   } catch {
-    /* best effort */
+    /* best effort — connection may already be gone */
   }
 }
 

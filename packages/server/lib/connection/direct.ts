@@ -20,7 +20,6 @@ import {
   PULSAR_KEY_PEM,
   PULSAR_PWD,
   PULSAR_SIGNATURE_HASH,
-  PULSAR_UFRAG,
 } from '../../../core/constants.ts';
 import type { PulsarServerConnection } from './types.ts';
 

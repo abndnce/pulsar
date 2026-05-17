@@ -1,6 +1,10 @@
 {
   "nodeModulesDir": "auto",
   "unstable": ["net"],
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
   "imports": {
     "@types/node": "npm:@types/node@^25.8.0",
     "@noble/curves": "npm:@noble/curves@^1.8.1",

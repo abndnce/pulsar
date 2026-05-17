@@ -73,7 +73,6 @@ class DataChannelSocket extends EventTarget {
       return;
     }
 
-    this._channel = channel;
     this._readyState = DataChannelSocket.OPEN;
 
     channel.onmessage = (event) => {

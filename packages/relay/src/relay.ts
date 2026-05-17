@@ -38,7 +38,6 @@ export type RelayUpdate = {
   nostrStatuses: NostrConnStatus[];
   tunnelCode?: string;
   wispPhase: WispPhase;
-  wispDetail: string;
 };
 
 type NostrConnection = {
@@ -55,7 +54,6 @@ export class PulsarRelay {
   private nostrStatuses: NostrConnStatus[] = [];
   private nostrPhase: NostrPhase = 'connecting';
   private wispPhase: WispPhase = 'disconnected';
-  private wispDetail = '';
   private tunnelCode: string | undefined;
   private onUpdate: ((update: RelayUpdate) => void) | null = null;
   private initPromise: Promise<void> | null = null;
@@ -106,7 +104,6 @@ export class PulsarRelay {
   /** Connect to a Wisp server. Nostr must be connected first. */
   async connectWisp(url: string): Promise<void> {
     this.wispPhase = 'connecting';
-    this.wispDetail = 'Connecting to Wisp server...';
     this.emit();
 
     this.wisp?.close();
@@ -117,7 +114,6 @@ export class PulsarRelay {
       this.wisp.onclose = () => {
         if (this.wispPhase === 'connected' || this.wispPhase === 'connecting') {
           this.wispPhase = 'disconnected';
-          this.wispDetail = 'Wisp server disconnected';
           this.emit();
         }
       };
@@ -125,13 +121,11 @@ export class PulsarRelay {
       await this.wisp.connected;
 
       this.wispPhase = 'connected';
-      this.wispDetail = 'Wisp server connected';
       this.emit();
     } catch (err) {
       this.wisp?.close();
       this.wisp = null;
       this.wispPhase = 'failed';
-      this.wispDetail = err instanceof Error ? err.message : String(err);
       this.emit();
       throw err;
     }
@@ -142,7 +136,6 @@ export class PulsarRelay {
     this.wisp?.close();
     this.wisp = null;
     this.wispPhase = 'disconnected';
-    this.wispDetail = '';
     this.emit();
   }
 
@@ -155,7 +148,6 @@ export class PulsarRelay {
     this.initPromise = null;
     this.nostrPhase = 'connecting';
     this.wispPhase = 'disconnected';
-    this.wispDetail = '';
     this.emit();
   }
 
@@ -313,7 +305,7 @@ export class PulsarRelay {
       this.keypair.seckey,
     );
     sendNostrEvent(relayWs, answerEvent);
-    this.setDetail('Accepted a Pulsar connection');
+    this.emit();
   }
 
   private async handleIceCandidate(clientPubkey: string, payload: SignalingPayload): Promise<void> {
@@ -378,18 +370,12 @@ export class PulsarRelay {
     this.emit();
   }
 
-  private setDetail(detail: string) {
-    this.wispDetail = detail;
-    this.emit();
-  }
-
   private emit() {
     this.onUpdate?.({
       nostrPhase: this.nostrPhase,
       nostrStatuses: this.nostrStatuses,
       tunnelCode: this.tunnelCode,
       wispPhase: this.wispPhase,
-      wispDetail: this.wispDetail,
     });
   }
 

@@ -7,14 +7,12 @@
   let wispUrl = $state('');
   let nostrPhase = $state<NostrPhase>('connecting');
   let wispPhase = $state<WispPhase>('disconnected');
-  let wispDetail = $state('');
   let nostrStatuses = $state<NostrConnStatus[]>([]);
   let tunnelCode = $state('');
 
   relay.setUpdateCallback((update) => {
     nostrPhase = update.nostrPhase;
     wispPhase = update.wispPhase;
-    wispDetail = update.wispDetail;
     nostrStatuses = update.nostrStatuses;
     tunnelCode = update.tunnelCode ?? '';
   });
