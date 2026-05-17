@@ -3,7 +3,7 @@ import { openPort, type PortMapping } from "./lib/upnp.ts";
 import { PulsarDirectServer } from "./lib/connection/direct.ts";
 import { wireTunnel } from "./lib/tunnel.ts";
 
-const PORT = 42069;
+const PORT = 4393;
 
 // ── Single shared UDP socket ──────────────────────────────────────
 

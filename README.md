@@ -8,7 +8,15 @@ Pulsar is a internet transport. It's powered by WebRTC, so there's no limitation
 
 ## The ideal way to specify a tunnel is an IP address, all else follows
 
-An IP address is easy to share and skips the intensive and blockable process of signalling (we can use something like [WebRTC Direct](https://github.com/libp2p/specs/blob/master/webrtc/webrtc-direct.md) instead). We don't need encryption data since that's TCP's job. But without signalling, we have to hardcode various things.
+An IP address is easy to share and skips the intensive and blockable process of signalling.
+
+We can be much more direct when we use IP addresses. We can use [WebRTC Direct](https://github.com/libp2p/specs/blob/master/webrtc/webrtc-direct.md) instead). We can skip encryption since that's TCP's job.
+
+But without signalling, we have to hardcode a few things:
+
+## Port
+
+There were 4393 known pulsars when Pulsar was made, so Pulsar uses port 4393.
 
 ## `ufrag` and `pwd`
 

@@ -128,7 +128,11 @@ class DataChannelSocket extends EventTarget {
 
   private _dispatch(event: Event): void {
     const type = event.type;
-    const handlerName = `on${type}` as "onopen" | "onclose" | "onerror" | "onmessage";
+    const handlerName = `on${type}` as
+      | "onopen"
+      | "onclose"
+      | "onerror"
+      | "onmessage";
 
     const handler = this[handlerName];
     if (handler) (handler as (event: Event) => void)(event);
@@ -159,14 +163,13 @@ class DataChannelSocket extends EventTarget {
  * import { connectDirect, libcurlTransport } from '@abndnce/pulsar-client';
  * import { libcurl } from 'libcurl.js';
  *
- * const tunnel = await connectDirect('216.250.119.217', 42069);
+ * const tunnel = await connectDirect('1.2.3.4', 1234);
  * libcurl.transport = libcurlTransport(tunnel.pc);
  * libcurl.set_websocket('wss://pulsar-tunnel.local/');
  * ```
  *
  * libcurl.js calls the factory with URLs like:
  *   `wss://pulsar-tunnel.local/example.com:80`
- *   `wss://pulsar-tunnel.local/216.250.119.217:443`
  *
  * The factory parses `<hostname>:<port>` from the URL path, opens a
  * Pulsar socket data channel, and returns a WebSocket-like adapter.
@@ -187,7 +190,9 @@ export function libcurlTransport(
     }
 
     if (!dest) {
-      throw new Error(`libcurl transport: no destination found in URL "${url}"`);
+      throw new Error(
+        `libcurl transport: no destination found in URL "${url}"`,
+      );
     }
 
     // Validate the destination format (hostname:port)
