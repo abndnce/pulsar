@@ -1,0 +1,29 @@
+:root {
+  color-scheme: light dark;
+  background-color: #0a0a0a;
+  color: #e0e0e0;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+}
+
+body {
+  margin: 0;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100dvh;
+  box-sizing: border-box;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+input {
+  font-family: inherit;
+}

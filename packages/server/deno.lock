@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "npm:@noble/curves@^1.8.1": "1.9.7",
     "npm:@types/node@^25.8.0": "25.8.0",
     "npm:werift@*": "0.22.9"
   },
@@ -373,6 +374,7 @@
   },
   "workspace": {
     "dependencies": [
+      "npm:@noble/curves@^1.8.1",
       "npm:@types/node@^25.8.0"
     ]
   }

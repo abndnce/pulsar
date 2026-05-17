@@ -1,6 +1,9 @@
 {
   "nodeModulesDir": "auto",
+  "unstable": ["net"],
   "imports": {
-    "@types/node": "npm:@types/node@^25.8.0"
+    "@types/node": "npm:@types/node@^25.8.0",
+    "@noble/curves": "npm:@noble/curves@^1.8.1",
+    "@noble/curves/secp256k1": "npm:@noble/curves@^1.8.1/secp256k1"
   }
 }

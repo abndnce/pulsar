@@ -1,0 +1,113 @@
+name: Continuous Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          cache: pnpm
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: latest
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # ── Build client package ───────────────────────────────────
+
+      - name: Build client
+        working-directory: packages/client
+        run: pnpm build
+
+      # ── Build relay app ─────────────────────────────────────────
+
+      - name: Build relay
+        working-directory: packages/relay
+        run: pnpm build
+
+      # ── Compile Pulsar server (Deno) ────────────────────────────
+
+      - name: Compile server (linux-arm64)
+        working-directory: packages/server
+        run: deno compile -A --no-check --target aarch64-unknown-linux-gnu --output /tmp/pulsar-server-linux-arm64 main.ts
+
+      - name: Compile server (linux-x64)
+        working-directory: packages/server
+        run: deno compile -A --no-check --target x86_64-unknown-linux-gnu --output /tmp/pulsar-server-linux-x64 main.ts
+
+      - name: Compile server (mac-arm64)
+        working-directory: packages/server
+        run: deno compile -A --no-check --target aarch64-apple-darwin --output /tmp/pulsar-server-mac-arm64 main.ts
+
+      - name: Compile server (mac-x64)
+        working-directory: packages/server
+        run: deno compile -A --no-check --target x86_64-apple-darwin --output /tmp/pulsar-server-mac-x64 main.ts
+
+      - name: Compile server (win-x64)
+        working-directory: packages/server
+        run: deno compile -A --no-check --target x86_64-pc-windows-msvc --output /tmp/pulsar-server-windows-x64.exe main.ts
+
+      # ── Stage artifacts ─────────────────────────────────────────
+
+      - name: Gather artifacts
+        run: |
+          cp /tmp/pulsar-server-linux-arm64 .
+          cp /tmp/pulsar-server-linux-x64 .
+          cp /tmp/pulsar-server-mac-arm64 .
+          cp /tmp/pulsar-server-mac-x64 .
+          cp /tmp/pulsar-server-windows-x64.exe .
+
+      - name: Attest release artifacts
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            pulsar-server-linux-arm64
+            pulsar-server-linux-x64
+            pulsar-server-mac-arm64
+            pulsar-server-mac-x64
+            pulsar-server-windows-x64.exe
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: latest
+        run: |
+          gh release delete "$TAG" -y || true
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" || true
+          gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/tags/$TAG" \
+            -f sha="$GITHUB_SHA"
+
+          gh release create "$TAG" \
+            --verify-tag \
+            --latest \
+            --title "$TAG" \
+            pulsar-server-linux-arm64 \
+            pulsar-server-linux-x64 \
+            pulsar-server-mac-arm64 \
+            pulsar-server-mac-x64 \
+            pulsar-server-windows-x64.exe
