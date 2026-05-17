@@ -1,47 +1,45 @@
 <script lang="ts">
-  import { PulsarRelay, type RelayPhase, type NostrConnStatus } from "./relay";
+  import { onMount } from "svelte";
+  import {
+    PulsarRelay,
+    type WispPhase,
+    type NostrPhase,
+    type NostrConnStatus,
+  } from "./relay";
 
   const relay = new PulsarRelay();
 
   let wispUrl = $state("");
-  let phase = $state<RelayPhase>("idle");
-  let detail = $state("");
+  let nostrPhase = $state<NostrPhase>("connecting");
+  let wispPhase = $state<WispPhase>("disconnected");
+  let wispDetail = $state("");
   let nostrStatuses = $state<NostrConnStatus[]>([]);
   let tunnelCode = $state("");
-  let lastError = $state("");
 
   relay.setUpdateCallback((update) => {
-    phase = update.phase;
-    detail = update.detail;
+    nostrPhase = update.nostrPhase;
+    wispPhase = update.wispPhase;
+    wispDetail = update.wispDetail;
     nostrStatuses = update.nostrStatuses;
     tunnelCode = update.tunnelCode ?? "";
   });
 
-  const phaseLabel: Record<RelayPhase, string> = {
-    idle: "",
-    "connecting-nostr": "Connecting to Nostr relays\u2026",
-    "connecting-wisp": "Connecting to Wisp server\u2026",
-    ready: "Ready",
-    failed: "Failed",
-  };
+  onMount(() => {
+    relay.initNostr().catch((err) => {
+      console.error("Failed to connect Nostr:", err);
+    });
+  });
 
-  async function handleStart() {
-    lastError = "";
-    phase = "connecting-nostr";
-
+  async function handleWispConnect() {
     try {
-      await relay.start(wispUrl);
-    } catch (e) {
-      lastError = e instanceof Error ? e.message : String(e);
-      phase = "failed";
+      await relay.connectWisp(wispUrl);
+    } catch {
+      // phase/detail already set by relay
     }
   }
 
-  function handleStop() {
-    relay.stop();
-    phase = "idle";
-    detail = "";
-    lastError = "";
+  function handleWispDisconnect() {
+    relay.disconnectWisp();
   }
 
   const nostrStateLabel: Record<string, string> = {
@@ -52,91 +50,133 @@
 </script>
 
 <main>
-  {#if phase === "idle" || phase === "failed"}
-    <div class="brand">
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-        <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/>
-        <circle cx="16" cy="16" r="6" fill="currentColor"/>
-        <line x1="16" y1="2" x2="16" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="16" y1="22" x2="16" y2="30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="2" y1="16" x2="10" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="22" y1="16" x2="30" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <h1>Pulsar Relay</h1>
+  <div class="brand">
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2" />
+      <circle cx="16" cy="16" r="6" fill="currentColor" />
+      <line
+        x1="16"
+        y1="2"
+        x2="16"
+        y2="10"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      />
+      <line
+        x1="16"
+        y1="22"
+        x2="16"
+        y2="30"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      />
+      <line
+        x1="2"
+        y1="16"
+        x2="10"
+        y2="16"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      />
+      <line
+        x1="22"
+        y1="16"
+        x2="30"
+        y2="16"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      />
+    </svg>
+    <h1>Pulsar Relay</h1>
+  </div>
+
+  <!-- ===== Nostr card – always visible, deemphasized ===== -->
+  <div class="nostr-card">
+    <div class="nostr-header">
+      <span class="nostr-title">Nostr Relay</span>
+      <span class="nostr-badge {nostrPhase}">
+        {nostrStateLabel[nostrPhase] ?? nostrPhase}
+      </span>
     </div>
 
-    <form
-      onsubmit={(e) => {
-        e.preventDefault();
-        handleStart();
-      }}
-    >
-      <div class="input-wrap">
-        <input
-          type="url"
-          bind:value={wispUrl}
-          placeholder="Wisp server URL (eg wss://anura.pro)"
-          autocomplete="off"
-          spellcheck="false"
-          required
-        />
-        <button type="submit" class="start">Start</button>
-      </div>
-    </form>
-
-    {#if lastError}
-      <div class="below">
-        <p class="error">{lastError}</p>
+    {#if tunnelCode}
+      <div class="tunnel-code-display">
+        <span class="tunnel-code-label">Tunnel Code</span>
+        <span class="tunnel-code-value">{tunnelCode}</span>
       </div>
     {/if}
-  {:else}
-    <div class="dashboard">
-      <div class="status-card">
-        <div class="status-row">
-          <span class="status-label">Nostr Relays</span>
-          <span class="status-value">
-            {nostrStatuses.filter((s) => s.state === "connected").length}/{nostrStatuses.length}
-          </span>
-        </div>
-        <div class="relay-list">
-          {#each nostrStatuses as s}
-            <div class="relay-item {s.state}">
-              <span class="relay-dot"></span>
-              <span class="relay-url">{s.url.replace("wss://", "")}</span>
-              <span class="relay-state">{nostrStateLabel[s.state] ?? s.state}</span>
-            </div>
-          {/each}
-        </div>
+
+    {#if nostrStatuses.length > 0}
+      <div class="nostr-relay-list">
+        {#each nostrStatuses as s}
+          <div class="nostr-relay-item {s.state}">
+            <span class="nostr-dot"></span>
+            <span class="nostr-relay-url">{s.url.replace("wss://", "")}</span>
+            <span class="nostr-relay-state"
+              >{nostrStateLabel[s.state] ?? s.state}</span
+            >
+          </div>
+        {/each}
       </div>
+    {/if}
+  </div>
 
-      {#if tunnelCode}
-        <div class="code-card">
-          <span class="code-label">Tunnel code</span>
-          <span class="code-value">{tunnelCode}</span>
+  <!-- ===== Wisp card – input vs connected ===== -->
+  <div class="wisp-card">
+    {#if wispPhase === "disconnected" || wispPhase === "failed"}
+      <form
+        onsubmit={(e) => {
+          e.preventDefault();
+          handleWispConnect();
+        }}
+      >
+        <div class="wisp-input-wrap">
+          <input
+            type="url"
+            bind:value={wispUrl}
+            placeholder="Wisp server URL (eg wss://anura.pro)"
+            autocomplete="off"
+            spellcheck="false"
+            required
+          />
+          <button type="submit" class="wisp-connect-btn">Start</button>
         </div>
-      {/if}
-
-      <div class="info-card">
-        <div class="info-row">
-          <span class="info-label">Status</span>
-          <span class="info-value status-detail">{detail || phaseLabel[phase]}</span>
-        </div>
+      </form>
+      <p class="wisp-disclaimer">
+        It's inconsiderate to substantively use someone else's Wisp server
+        without getting permission.
+      </p>
+    {:else if wispPhase === "connecting"}
+      <div class="wisp-status">
+        <span class="wisp-status-icon connecting"></span>
+        <span class="wisp-status-text">Connecting to Wisp server\u2026</span>
       </div>
-
-      <button class="stop" onclick={handleStop}>Stop</button>
-    </div>
-  {/if}
+    {:else if wispPhase === "connected"}
+      <div class="wisp-connected">
+        <div class="wisp-status-row">
+          <span class="wisp-status-icon connected"></span>
+          <span class="wisp-status-label">Connected to Wisp</span>
+        </div>
+        <span class="wisp-server-url">{wispUrl}</span>
+        <button class="wisp-disconnect-btn" onclick={handleWispDisconnect}>
+          Disconnect
+        </button>
+      </div>
+    {/if}
+  </div>
 </main>
-
-<p class="disclaimer">
-  It's inconsiderate to substantively use someone else's Wisp server
-  without getting permission.
-</p>
 
 <style>
   main {
     width: min(28rem, calc(100vw - 2rem));
     margin: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
   .brand {
@@ -144,7 +184,7 @@
     align-items: center;
     justify-content: center;
     gap: 0.625rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
     color: var(--m3c-primary);
   }
 
@@ -155,34 +195,161 @@
     color: var(--m3c-on-surface);
   }
 
-  form {
-    display: flex;
-    flex-direction: column;
+  /* ---- Nostr card (deemphasized) ---- */
+  .nostr-card {
+    background: var(--m3c-surface-container-high);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    opacity: 0.7;
+    font-size: 0.8rem;
+    transition: opacity 0.2s;
   }
 
-  .input-wrap {
+  .nostr-card:hover {
+    opacity: 1;
+  }
+
+  .nostr-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .nostr-title {
+    color: var(--m3c-on-surface-variant);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .nostr-badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.375rem;
+  }
+
+  .nostr-badge.connecting {
+    background: var(--m3c-tertiary-container);
+    color: var(--m3c-on-tertiary-container);
+  }
+
+  .nostr-badge.connected {
+    background: var(--m3c-primary-container);
+    color: var(--m3c-on-primary-container);
+  }
+
+  .nostr-badge.failed {
+    background: var(--m3c-error-container);
+    color: var(--m3c-on-error-container);
+  }
+
+  .tunnel-code-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .tunnel-code-label {
+    color: var(--m3c-on-surface-variant);
+    font-size: 0.7rem;
+  }
+
+  .tunnel-code-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--m3c-primary);
+    letter-spacing: 0.05em;
+  }
+
+  .nostr-relay-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .nostr-relay-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.7rem;
+  }
+
+  .nostr-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .nostr-relay-item.connected .nostr-dot {
+    background: var(--m3c-primary);
+  }
+
+  .nostr-relay-item.failed .nostr-dot {
+    background: var(--m3c-error);
+  }
+
+  .nostr-relay-item.connecting .nostr-dot {
+    background: var(--m3c-tertiary);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
+
+  .nostr-relay-url {
+    color: var(--m3c-on-surface);
+    flex: 1;
+    word-break: break-all;
+  }
+
+  .nostr-relay-state {
+    color: var(--m3c-on-surface-variant);
+    font-size: 0.65rem;
+  }
+
+  /* ---- Wisp card ---- */
+  .wisp-card {
+    background: var(--m3c-surface-container-high);
+    border-radius: 0.75rem;
+    padding: 1rem;
+  }
+
+  .wisp-input-wrap {
     position: relative;
     display: flex;
     align-items: center;
   }
 
-  input {
+  .wisp-card input {
     width: 100%;
     padding: 1rem 5.5rem 1rem 1rem;
     outline: none;
     border-radius: 1rem;
     border: none;
-    background: var(--m3c-surface-container-high);
+    background: var(--m3c-surface-container-highest);
     color: var(--m3c-on-surface);
     font-size: 1rem;
     box-sizing: border-box;
   }
 
-  input::placeholder {
+  .wisp-card input::placeholder {
     color: var(--m3c-on-surface-variant);
   }
 
-  .start {
+  .wisp-connect-btn {
     position: absolute;
     right: 0.5rem;
     padding: 0.5rem 0.75rem;
@@ -196,148 +363,70 @@
     white-space: nowrap;
   }
 
-  .below {
-    text-align: center;
-    min-height: 1rem;
-    margin-top: 0.625rem;
-    padding-inline: 0.25rem;
-    font-size: 0.8rem;
-    line-height: 1;
-  }
-
-  .error {
-    margin: 0;
-    color: var(--m3c-error);
-  }
-
-  .dashboard {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .status-card,
-  .code-card,
-  .info-card {
-    background: var(--m3c-surface-container-high);
-    border-radius: 0.75rem;
-    padding: 1rem;
-  }
-
-  .status-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.625rem;
-  }
-
-  .status-label {
+  .wisp-disclaimer {
     color: var(--m3c-on-surface-variant);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    margin: 0.75rem 0 0;
+    line-height: 1.4;
+    text-align: center;
   }
 
-  .status-value {
-    color: var(--m3c-on-surface);
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-
-  .relay-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  .relay-item {
+  .wisp-status {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-    font-size: 0.8rem;
+    padding: 0.5rem 0;
   }
 
-  .relay-dot {
+  .wisp-status-icon {
     width: 0.5rem;
     height: 0.5rem;
     border-radius: 50%;
     flex-shrink: 0;
   }
 
-  .relay-item.connected .relay-dot {
-    background: var(--m3c-primary);
-    box-shadow: 0 0 6px var(--m3c-primary);
-  }
-
-  .relay-item.failed .relay-dot {
-    background: var(--m3c-error);
-  }
-
-  .relay-item.connecting .relay-dot {
+  .wisp-status-icon.connecting {
     background: var(--m3c-tertiary);
     animation: pulse 1.2s ease-in-out infinite;
   }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+  .wisp-status-icon.connected {
+    background: var(--m3c-primary);
+    box-shadow: 0 0 6px var(--m3c-primary);
   }
 
-  .relay-url {
+  .wisp-status-text {
     color: var(--m3c-on-surface);
-    flex: 1;
-    word-break: break-all;
+    font-size: 0.9rem;
   }
 
-  .relay-state {
-    color: var(--m3c-on-surface-variant);
-    font-size: 0.75rem;
-  }
-
-  .code-card {
+  .wisp-connected {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.375rem;
-    text-align: center;
+    gap: 0.5rem;
   }
 
-  .code-label {
+  .wisp-status-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .wisp-status-label {
+    color: var(--m3c-on-surface);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .wisp-server-url {
     color: var(--m3c-on-surface-variant);
     font-size: 0.75rem;
+    word-break: break-all;
   }
 
-  .code-value {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--m3c-primary);
-    letter-spacing: 0.05em;
-  }
-
-  .info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.25rem 0;
-  }
-
-  .info-row + .info-row {
-    border-top: 1px solid var(--m3c-outline-variant);
-  }
-
-  .info-label {
-    color: var(--m3c-on-surface-variant);
-    font-size: 0.8rem;
-  }
-
-  .info-value {
-    color: var(--m3c-on-surface);
-    font-size: 0.8rem;
-  }
-
-  .status-detail {
-    color: var(--m3c-primary);
-  }
-
-  .stop {
+  .wisp-disconnect-btn {
     padding: 0.5rem 0.75rem;
     border-radius: 0.5rem;
     border: none;
@@ -347,16 +436,5 @@
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
-    align-self: center;
-  }
-
-  .disclaimer {
-    color: var(--m3c-on-surface-variant);
-    font-size: 0.75rem;
-    margin-top: 1.5rem;
-    line-height: 1.4;
-    text-align: center;
-    max-width: 28rem;
-    margin-inline: auto;
   }
 </style>

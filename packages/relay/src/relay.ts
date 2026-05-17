@@ -26,12 +26,9 @@ import {
 } from "../../core/socket.ts";
 import { WispClient } from "./wisp-client";
 
-export type RelayPhase =
-  | "idle"
-  | "connecting-wisp"
-  | "connecting-nostr"
-  | "ready"
-  | "failed";
+export type NostrPhase = "connecting" | "connected" | "failed";
+
+export type WispPhase = "disconnected" | "connecting" | "connected" | "failed";
 
 export type NostrConnStatus = {
   url: string;
@@ -40,10 +37,11 @@ export type NostrConnStatus = {
 };
 
 export type RelayUpdate = {
-  phase: RelayPhase;
-  detail: string;
+  nostrPhase: NostrPhase;
   nostrStatuses: NostrConnStatus[];
   tunnelCode?: string;
+  wispPhase: WispPhase;
+  wispDetail: string;
 };
 
 type NostrConnection = {
@@ -58,18 +56,12 @@ export class PulsarRelay {
   private peerConnections = new Map<string, RTCPeerConnection>();
   private seenEventIds = new Set<string>();
   private nostrStatuses: NostrConnStatus[] = [];
-  private phase: RelayPhase = "idle";
-  private detail = "";
+  private nostrPhase: NostrPhase = "connecting";
+  private wispPhase: WispPhase = "disconnected";
+  private wispDetail = "";
   private tunnelCode: string | undefined;
   private onUpdate: ((update: RelayUpdate) => void) | null = null;
-
-  get currentPhase() {
-    return this.phase;
-  }
-
-  get currentDetail() {
-    return this.detail;
-  }
+  private initPromise: Promise<void> | null = null;
 
   get currentTunnelCode() {
     return this.tunnelCode;
@@ -83,48 +75,97 @@ export class PulsarRelay {
     this.onUpdate = cb;
   }
 
-  async start(wispUrl: string): Promise<void> {
-    this.closeConnections();
+  /** Connect to Nostr relays eagerly. Safe to call multiple times. */
+  async initNostr(): Promise<void> {
+    if (this.initPromise) return this.initPromise;
+    this.initPromise = this.initNostrInternal();
+    return this.initPromise;
+  }
+
+  private async initNostrInternal(): Promise<void> {
+    this.closeNostrConnections();
     this.keypair = generateNostrKeypair();
     this.tunnelCode = tunnelCodeFromPubkey(this.keypair.pubkey);
     this.seenEventIds.clear();
 
+    this.nostrPhase = "connecting";
+    this.emit();
+
+    await this.connectNostrRelays();
+
+    if (!this.nostrConns.length) {
+      this.nostrPhase = "failed";
+      this.emit();
+      return;
+    }
+
+    await this.publishDiscovery();
+    for (const conn of this.nostrConns) this.subscribeSignaling(conn);
+
+    this.nostrPhase = "connected";
+    this.emit();
+  }
+
+  /** Connect to a Wisp server. Nostr must be connected first. */
+  async connectWisp(url: string): Promise<void> {
+    this.wispPhase = "connecting";
+    this.wispDetail = "Connecting to Wisp server...";
+    this.emit();
+
+    this.wisp?.close();
+    this.wisp = null;
+
     try {
-      this.setPhase("connecting-nostr", "Connecting to Nostr relays...");
-      await this.connectNostrRelays();
-
-      if (!this.nostrConns.length) {
-        throw new Error("Could not connect to any Nostr relay");
-      }
-
-      this.setPhase("connecting-wisp", "Connecting to Wisp server...");
-      this.wisp = new WispClient(wispUrl);
+      this.wisp = new WispClient(url);
       this.wisp.onclose = () => {
-        if (this.phase !== "idle" && this.phase !== "failed") {
-          this.setPhase("failed", "Wisp server disconnected");
+        if (
+          this.wispPhase === "connected" ||
+          this.wispPhase === "connecting"
+        ) {
+          this.wispPhase = "disconnected";
+          this.wispDetail = "Wisp server disconnected";
+          this.emit();
         }
       };
+
       await this.wisp.connected;
 
-      await this.publishDiscovery();
-      for (const conn of this.nostrConns) this.subscribeSignaling(conn);
-
-      this.setPhase("ready", "Relay is active");
+      this.wispPhase = "connected";
+      this.wispDetail = "Wisp server connected";
+      this.emit();
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.setPhase("failed", message);
-      this.closeConnections({ keepStatus: true });
+      this.wisp?.close();
+      this.wisp = null;
+      this.wispPhase = "failed";
+      this.wispDetail = err instanceof Error ? err.message : String(err);
+      this.emit();
       throw err;
     }
   }
 
-  stop() {
+  /** Disconnect only the Wisp connection, keeping Nostr alive. */
+  disconnectWisp(): void {
+    this.wisp?.close();
+    this.wisp = null;
+    this.wispPhase = "disconnected";
+    this.wispDetail = "";
+    this.emit();
+  }
+
+  /** Full teardown: close everything, Nostr and Wisp. */
+  stop(): void {
     this.closeConnections();
     this.keypair = null;
     this.tunnelCode = undefined;
     this.nostrStatuses = [];
-    this.setPhase("idle", "");
+    this.initPromise = null;
+    this.nostrPhase = "connecting";
+    this.wispPhase = "disconnected";
+    this.wispDetail = "";
+    this.emit();
   }
+
+  // ---- private ----
 
   private async connectNostrRelays(): Promise<void> {
     this.nostrStatuses = NOSTR_RELAYS.map((url) => ({
@@ -172,8 +213,9 @@ export class PulsarRelay {
           error: "Disconnected",
         });
 
-        if (this.phase === "ready" && !this.nostrConns.length) {
-          this.setPhase("failed", "All Nostr relays disconnected");
+        if (this.nostrPhase === "connected" && !this.nostrConns.length) {
+          this.nostrPhase = "failed";
+          this.emit();
         }
       });
     });
@@ -213,7 +255,7 @@ export class PulsarRelay {
     if (this.seenEventIds.has(event.id)) return;
     if (event.kind !== SIGNALING_KIND) return;
     if (!isAddressedTo(event, this.keypair.pubkey)) return;
-    if (!await verifyNostrEvent(event)) return;
+    if (!(await verifyNostrEvent(event))) return;
 
     this.seenEventIds.add(event.id);
 
@@ -288,7 +330,7 @@ export class PulsarRelay {
       this.keypair.seckey,
     );
     sendNostrEvent(relayWs, answerEvent);
-    this.setPhase("ready", "Accepted a Pulsar connection");
+    this.setDetail("Accepted a Pulsar connection");
   }
 
   private async handleIceCandidate(
@@ -356,22 +398,22 @@ export class PulsarRelay {
     this.emit();
   }
 
-  private setPhase(phase: RelayPhase, detail: string) {
-    this.phase = phase;
-    this.detail = detail;
+  private setDetail(detail: string) {
+    this.wispDetail = detail;
     this.emit();
   }
 
   private emit() {
     this.onUpdate?.({
-      phase: this.phase,
-      detail: this.detail,
+      nostrPhase: this.nostrPhase,
       nostrStatuses: this.nostrStatuses,
       tunnelCode: this.tunnelCode,
+      wispPhase: this.wispPhase,
+      wispDetail: this.wispDetail,
     });
   }
 
-  private closeConnections(options: { keepStatus?: boolean } = {}) {
+  private closeNostrConnections() {
     for (const conn of this.nostrConns) {
       try {
         conn.ws.close();
@@ -381,9 +423,6 @@ export class PulsarRelay {
     }
     this.nostrConns.length = 0;
 
-    this.wisp?.close();
-    this.wisp = null;
-
     for (const pc of this.peerConnections.values()) {
       try {
         pc.close();
@@ -392,8 +431,13 @@ export class PulsarRelay {
       }
     }
     this.peerConnections.clear();
+  }
 
-    if (!options.keepStatus) this.nostrStatuses = [];
+  private closeConnections() {
+    this.closeNostrConnections();
+    this.wisp?.close();
+    this.wisp = null;
+    this.nostrStatuses = [];
   }
 }
 
