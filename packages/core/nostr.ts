@@ -14,8 +14,8 @@ export const SIGNALING_KIND = 28000;
 /** Parameterized replaceable event kind used for server discovery. */
 export const DISCOVERY_KIND = 38000;
 
-/** The `d` tag identifier for the Pulsar server discovery event. */
-export const D_TAG_ID = "pulsar-server";
+/** The `d` tag identifier for the Pulsar tunnel discovery event. */
+export const D_TAG_ID = "pulsar-tunnel";
 
 /** Derive a human-readable tunnel code from a server's 32-byte x-only pubkey. */
 export function tunnelCodeFromPubkey(pubkeyHex: string): string {

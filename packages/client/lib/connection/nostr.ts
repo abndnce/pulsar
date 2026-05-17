@@ -444,7 +444,7 @@ async function findServer(
  *
  * 1. Connects to a Nostr relay (tries nostr.data.haus first,
  *    then kotukonostr.onrender.com)
- * 2. Looks up the server's discovery event (Kind 38000, d="pulsar-server").
+ * 2. Looks up the tunnel's discovery event (Kind 38000, d="pulsar-tunnel").
  *    If `tunnelCode` is given (e.g. "pulsara3f2"), filters to the server
  *    whose pubkey begins with the 4-char suffix after "pulsar".
  * 3. Generates an ephemeral client keypair

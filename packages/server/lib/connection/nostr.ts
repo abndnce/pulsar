@@ -251,7 +251,7 @@ export class NostrServerConnection implements PulsarServerConnection, TunnelWire
  * On boot:
  * 1. Generates a fresh secp256k1 keypair
  * 2. Connects to all configured Nostr relays
- * 3. Publishes a NIP-33 discovery event (Kind 38000, d="pulsar-server")
+ * 3. Publishes a NIP-33 discovery event (Kind 38000, d="pulsar-tunnel")
  * 4. Subscribes to ephemeral signaling events (Kind 28000) targeted at its pubkey
  * 5. When an encrypted offer arrives: decrypts, creates a werift RTCPeerConnection,
  *    generates an answer, encrypts it, and replies via Nostr
@@ -346,10 +346,10 @@ export class PulsarNostrServer {
       kind: DISCOVERY_KIND,
       tags: [
         ["d", D_TAG_ID],
-        ["t", "pulsar-server"],
+        ["t", "pulsar-tunnel"],
       ],
       content: JSON.stringify({
-        name: "Pulsar Server",
+        name: "Pulsar Tunnel",
         version: "0.1.0",
         pubkey: this._pubkey,
         transport: "nostr",
