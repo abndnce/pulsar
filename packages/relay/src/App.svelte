@@ -1,155 +1,169 @@
 <script lang="ts">
-  import { PulsarRelay } from "./relay";
+  import { PulsarRelay, type RelayPhase, type NostrConnStatus } from "./relay";
 
   const relay = new PulsarRelay();
 
-  let phase = $state<"idle" | "connected" | "failed">("idle");
+  let wispUrl = $state("");
+  let phase = $state<RelayPhase>("idle");
+  let detail = $state("");
+  let nostrStatuses = $state<NostrConnStatus[]>([]);
   let eventCount = $state(0);
-  let subCount = $state(0);
-  let statuses = $state<{ relay: string; type: string; error?: string }[]>([]);
-  let customRelayUrl = $state("");
+  let tunnelCode = $state("");
   let lastError = $state("");
 
   relay.setUpdateCallback((update) => {
+    phase = update.phase;
+    detail = update.detail;
+    nostrStatuses = update.nostrStatuses;
     eventCount = update.eventCount;
-    subCount = update.subCount;
-    statuses = update.status.map((s) => {
-      if (s.type === "idle")
-        return { relay: "", type: "idle" };
-      return {
-        relay: (s as any).relay,
-        type: s.type,
-        error: (s as any).error,
-      };
-    });
-
-    const connected = statuses.some((s) => s.type === "connected");
-    const anyFailed = statuses.some((s) => s.type === "failed");
-
-    if (connected) {
-      phase = "connected";
-    } else if (anyFailed && phase !== "idle") {
-      phase = "failed";
-    }
+    tunnelCode = update.tunnelCode ?? "";
   });
 
-  async function handleConnect() {
-    lastError = "";
-    phase = "idle";
+  const phaseLabel: Record<RelayPhase, string> = {
+    idle: "",
+    "connecting-nostr": "Connecting to Nostr relays\u2026",
+    "connecting-wisp": "Connecting to Wisp server\u2026",
+    ready: "Ready",
+    failed: "Failed",
+  };
 
-    const relays = customRelayUrl.trim()
-      ? customRelayUrl.split(",").map((u) => u.trim()).filter(Boolean)
-      : undefined;
+  async function handleStart() {
+    lastError = "";
+    phase = "connecting-nostr";
 
     try {
-      await relay.connect(relays);
+      await relay.start(wispUrl);
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
       phase = "failed";
     }
   }
 
-  function handleDisconnect() {
-    relay.disconnect();
+  function handleStop() {
+    relay.stop();
     phase = "idle";
+    detail = "";
     lastError = "";
   }
 
-  const phaseLabel: Record<string, string> = {
-    idle: "Disconnected",
+  const nostrStateLabel: Record<string, string> = {
+    connecting: "Connecting\u2026",
     connected: "Connected",
     failed: "Failed",
   };
 </script>
 
 <main>
-  <h1>Pulsar Relay</h1>
-
   {#if phase === "idle" || phase === "failed"}
+    <div class="brand">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/>
+        <circle cx="16" cy="16" r="6" fill="currentColor"/>
+        <line x1="16" y1="2" x2="16" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="16" y1="22" x2="16" y2="30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="2" y1="16" x2="10" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="22" y1="16" x2="30" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <h1>Pulsar Relay</h1>
+    </div>
+
     <form
       onsubmit={(e) => {
         e.preventDefault();
-        handleConnect();
+        handleStart();
       }}
     >
       <div class="input-wrap">
         <input
-          type="text"
-          bind:value={customRelayUrl}
-          placeholder="Upstream relays (comma-separated, or leave blank for defaults)"
+          type="url"
+          bind:value={wispUrl}
+          placeholder="Wisp server URL (eg wss://anura.pro)"
           autocomplete="off"
           spellcheck="false"
+          required
         />
-        <button type="submit" class="connect" disabled={phase === "idle" && statuses.length > 0}>
-          Connect
-        </button>
+        <button type="submit" class="start">Start</button>
       </div>
-      <p class="hint">
-        Defaults: wss://nostr.data.haus, wss://kotukonostr.onrender.com
-      </p>
     </form>
 
     {#if lastError}
-      <div class="error-box">
-        {lastError}
+      <div class="below">
+        <p class="error">{lastError}</p>
       </div>
     {/if}
   {:else}
     <div class="dashboard">
-      <div class="stat-row">
-        <span class="stat-label">Events stored:</span>
-        <span class="stat-value">{eventCount}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Subscriptions:</span>
-        <span class="stat-value">{subCount}</span>
-      </div>
-
-      <div class="relay-list">
-        {#each statuses as s}
-          <div class="relay-item {s.type}">
-            <span class="relay-dot"></span>
-            <span class="relay-url">{s.relay}</span>
-            {#if s.type === "connected"}
-              <span class="relay-badge ok">OK</span>
-            {:else if s.type === "failed"}
-              <span class="relay-badge err">ERR</span>
-            {:else if s.type === "connecting"}
-              <span class="relay-badge pending">...</span>
-            {/if}
-            {#if s.error}
-              <span class="relay-error">{s.error}</span>
-            {/if}
-          </div>
-        {/each}
+      <div class="status-card">
+        <div class="status-row">
+          <span class="status-label">Nostr Relays</span>
+          <span class="status-value">
+            {nostrStatuses.filter((s) => s.state === "connected").length}/{nostrStatuses.length}
+          </span>
+        </div>
+        <div class="relay-list">
+          {#each nostrStatuses as s}
+            <div class="relay-item {s.state}">
+              <span class="relay-dot"></span>
+              <span class="relay-url">{s.url.replace("wss://", "")}</span>
+              <span class="relay-state">{nostrStateLabel[s.state] ?? s.state}</span>
+            </div>
+          {/each}
+        </div>
       </div>
 
-      <p class="status-line">{phaseLabel[phase]}</p>
-      <button class="disconnect" onclick={handleDisconnect}>
-        Disconnect
-      </button>
+      {#if tunnelCode}
+        <div class="code-card">
+          <span class="code-label">Tunnel code</span>
+          <span class="code-value">{tunnelCode}</span>
+        </div>
+      {/if}
+
+      <div class="info-card">
+        <div class="info-row">
+          <span class="info-label">Events relayed</span>
+          <span class="info-value">{eventCount}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Status</span>
+          <span class="info-value status-detail">{detail || phaseLabel[phase]}</span>
+        </div>
+      </div>
+
+      <button class="stop" onclick={handleStop}>Stop</button>
     </div>
   {/if}
 </main>
 
+<p class="disclaimer">
+  It's inconsiderate to substantively use someone else's Wisp server
+  without getting permission.
+</p>
+
 <style>
   main {
-    width: min(36rem, calc(100vw - 2rem));
-    margin: 0 auto;
+    width: min(28rem, calc(100vw - 2rem));
+    margin: auto;
   }
 
-  h1 {
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    margin-bottom: 1.5rem;
+    color: var(--m3c-primary);
+  }
+
+  .brand h1 {
+    margin: 0;
     font-size: 1.5rem;
     font-weight: 600;
-    margin-bottom: 1.5rem;
-    color: #00c853;
-    text-align: center;
+    color: var(--m3c-on-surface);
   }
 
   form {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
   }
 
   .input-wrap {
@@ -160,53 +174,46 @@
 
   input {
     width: 100%;
-    padding: 0.75rem 6rem 0.75rem 0.75rem;
-    border-radius: 0.5rem;
-    border: 1px solid #333;
-    background: #1a1a1a;
-    color: #e0e0e0;
-    font-size: 0.875rem;
+    padding: 1rem 5.5rem 1rem 1rem;
     outline: none;
-  }
-
-  input:focus {
-    border-color: #00c853;
+    border-radius: 1rem;
+    border: none;
+    background: var(--m3c-surface-container-high);
+    color: var(--m3c-on-surface);
+    font-size: 1rem;
+    box-sizing: border-box;
   }
 
   input::placeholder {
-    color: #666;
+    color: var(--m3c-on-surface-variant);
   }
 
-  .hint {
-    font-size: 0.75rem;
-    color: #666;
-    margin: 0;
-  }
-
-  .connect {
+  .start {
     position: absolute;
-    right: 0.375rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: 0.375rem;
+    right: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
     border: none;
-    background: #00c853;
-    color: #000;
-    font-size: 0.8rem;
+    background: var(--m3c-primary);
+    color: var(--m3c-on-primary);
+    font-size: 0.875rem;
     font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
   }
 
-  .connect:disabled {
-    opacity: 0.5;
-  }
-
-  .error-box {
-    margin-top: 0.75rem;
-    padding: 0.75rem;
-    border-radius: 0.375rem;
-    background: #2d1b1b;
-    color: #ff6b6b;
+  .below {
+    text-align: center;
+    min-height: 1rem;
+    margin-top: 0.625rem;
+    padding-inline: 0.25rem;
     font-size: 0.8rem;
-    border: 1px solid #4a2020;
+    line-height: 1;
+  }
+
+  .error {
+    margin: 0;
+    color: var(--m3c-error);
   }
 
   .dashboard {
@@ -215,21 +222,29 @@
     gap: 0.75rem;
   }
 
-  .stat-row {
+  .status-card,
+  .code-card,
+  .info-card {
+    background: var(--m3c-surface-container-high);
+    border-radius: 0.75rem;
+    padding: 1rem;
+  }
+
+  .status-row {
     display: flex;
     justify-content: space-between;
-    padding: 0.5rem 0.75rem;
-    background: #1a1a1a;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
+    align-items: center;
+    margin-bottom: 0.625rem;
   }
 
-  .stat-label {
-    color: #888;
+  .status-label {
+    color: var(--m3c-on-surface-variant);
+    font-size: 0.8rem;
   }
 
-  .stat-value {
-    color: #00c853;
+  .status-value {
+    color: var(--m3c-on-surface);
+    font-size: 0.8rem;
     font-weight: 600;
   }
 
@@ -243,11 +258,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    background: #1a1a1a;
-    border-radius: 0.375rem;
     font-size: 0.8rem;
-    flex-wrap: wrap;
   }
 
   .relay-dot {
@@ -258,73 +269,100 @@
   }
 
   .relay-item.connected .relay-dot {
-    background: #00c853;
+    background: var(--m3c-primary);
+    box-shadow: 0 0 6px var(--m3c-primary);
   }
 
   .relay-item.failed .relay-dot {
-    background: #ff5252;
+    background: var(--m3c-error);
   }
 
   .relay-item.connecting .relay-dot {
-    background: #ffd740;
-    animation: pulse 1s infinite;
+    background: var(--m3c-tertiary);
+    animation: pulse 1.2s ease-in-out infinite;
   }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+    50% { opacity: 0.3; }
   }
 
   .relay-url {
-    color: #ccc;
+    color: var(--m3c-on-surface);
     flex: 1;
     word-break: break-all;
   }
 
-  .relay-badge {
-    font-size: 0.7rem;
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    font-weight: 600;
-  }
-
-  .relay-badge.ok {
-    background: #1b3a1b;
-    color: #69f0ae;
-  }
-
-  .relay-badge.err {
-    background: #3a1b1b;
-    color: #ff6b6b;
-  }
-
-  .relay-badge.pending {
-    background: #3a3a1b;
-    color: #ffd740;
-  }
-
-  .relay-error {
-    width: 100%;
-    color: #ff6b6b;
+  .relay-state {
+    color: var(--m3c-on-surface-variant);
     font-size: 0.75rem;
-    padding-left: 1rem;
   }
 
-  .status-line {
+  .code-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
     text-align: center;
-    color: #666;
-    font-size: 0.8rem;
-    margin: 0;
   }
 
-  .disconnect {
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    border: 1px solid #4a2020;
-    background: #2d1b1b;
-    color: #ff6b6b;
+  .code-label {
+    color: var(--m3c-on-surface-variant);
+    font-size: 0.75rem;
+  }
+
+  .code-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--m3c-primary);
+    letter-spacing: 0.05em;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+  }
+
+  .info-row + .info-row {
+    border-top: 1px solid var(--m3c-outline-variant);
+  }
+
+  .info-label {
+    color: var(--m3c-on-surface-variant);
     font-size: 0.8rem;
+  }
+
+  .info-value {
+    color: var(--m3c-on-surface);
+    font-size: 0.8rem;
+  }
+
+  .status-detail {
+    color: var(--m3c-primary);
+  }
+
+  .stop {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: none;
+    background: var(--m3c-error-container);
+    color: var(--m3c-on-error-container);
+    font-size: 0.875rem;
     font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
     align-self: center;
+  }
+
+  .disclaimer {
+    color: var(--m3c-on-surface-variant);
+    font-size: 0.75rem;
+    margin-top: 1.5rem;
+    line-height: 1.4;
+    text-align: center;
+    max-width: 28rem;
+    margin-inline: auto;
   }
 </style>
