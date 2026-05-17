@@ -445,8 +445,8 @@ async function findServer(
  * 1. Connects to a Nostr relay (tries nostr.data.haus first,
  *    then kotukonostr.onrender.com)
  * 2. Looks up the tunnel's discovery event (Kind 38000, d="pulsar-tunnel").
- *    If `tunnelCode` is given (e.g. "pulsara3f2"), filters to the server
- *    whose pubkey begins with the 4-char suffix after "pulsar".
+ *    If `tunnelCode` is given (e.g. "a3f2"), filters to the tunnel
+ *    whose pubkey begins with those 4 hex characters.
  * 3. Generates an ephemeral client keypair
  * 4. Creates a WebRTC offer
  * 5. Encrypts the offer and sends via a Kind 28000 ephemeral event
