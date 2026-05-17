@@ -15,6 +15,11 @@ async function writeAll(conn: Deno.Conn, data: Uint8Array): Promise<void> {
 
 // ── handleSocketChannel ───────────────────────────────────────────
 
+// ── TLS detection ──────────────────────────────────────────────────
+
+/** TLS Handshake content type as defined by RFC 8446 / RFC 5246. */
+const TLS_HANDSHAKE_CT = 0x16;
+
 /**
  * Bridge a single data channel to a raw TCP socket.
  *
@@ -26,6 +31,10 @@ async function writeAll(conn: Deno.Conn, data: Uint8Array): Promise<void> {
  * If the data channel opens before the TCP connection completes, data
  * is buffered in `pendingWrites` and flushed once connected.
  *
+ * **Non-TLS traffic is always rejected.** The first byte from the client
+ * must be `0x16` (TLS Handshake content type), otherwise the channel
+ * is closed immediately.
+ *
  * Errors on either side close both the channel and the socket.
  */
 function handleSocketChannel(
@@ -36,6 +45,7 @@ function handleSocketChannel(
   const { hostname, port } = parseSocketDestination(channel.label);
   let socket: Deno.Conn | undefined;
   let closed = false;
+  let receivedFirstMessage = false;
   const pendingWrites: Uint8Array[] = [];
   let writeChain = Promise.resolve();
 
@@ -80,6 +90,15 @@ function handleSocketChannel(
       });
   };
 
+  /** Reject a connection with a log message and tear everything down. */
+  const reject = (reason: string) => {
+    const msg = `[Tunnel] Rejected ${hostname}:${port} — ${reason}`;
+    console.warn(msg);
+    onError?.(new Error(msg));
+    closeSocket();
+    closeChannel();
+  };
+
   // ── Data channel events ──
 
   channel.onmessage = (event) => {
@@ -93,6 +112,16 @@ function handleSocketChannel(
             : typeof data === 'string'
               ? new TextEncoder().encode(data)
               : new Uint8Array(data as ArrayBuffer);
+
+      // ── Enforce TLS on the very first client message ──
+      if (!receivedFirstMessage) {
+        receivedFirstMessage = true;
+        if (bytes.length === 0 || bytes[0] !== TLS_HANDSHAKE_CT) {
+          reject('first byte is not TLS Handshake (0x16)');
+          return;
+        }
+      }
+
       queueWrite(bytes);
     } catch (e) {
       const msg = `[Tunnel] Invalid payload for ${hostname}:${port}: ${errMsg(e)}`;

@@ -8,7 +8,7 @@ Pulsar is a internet transport. It's powered by WebRTC, so there's no limitation
 
 An IP address is easy to share.
 
-We can be much more direct when we use IP addresses. We can use [WebRTC Direct](https://github.com/libp2p/specs/blob/master/webrtc/webrtc-direct.md) instead. WebRTC Direct skips the intensive process of signalling. WebRTC Direct isn't blockable in the same way signalling is. We can also skip encryption negotiation because most traffic uses TLS.
+We can be much more direct when we use IP addresses. We can use [WebRTC Direct](https://github.com/libp2p/specs/blob/master/webrtc/webrtc-direct.md) instead. WebRTC Direct skips the intensive process of signalling. WebRTC Direct isn't blockable in the same way signalling is. And by disabling non-TLS traffic, it's okay to skip encryption, keeping the representation of a tunnel to just an IP address.
 
 But without signalling, we have to hardcode a few things:
 
