@@ -97,18 +97,11 @@
   <!-- ===== Nostr card – always visible, deemphasized ===== -->
   <div class="nostr-card">
     <div class="nostr-header">
-      <span class="nostr-title">Nostr Relay</span>
+      <span class="tunnel-code-value">{tunnelCode}</span>
       <span class="nostr-badge {nostrPhase}">
         {nostrStateLabel[nostrPhase] ?? nostrPhase}
       </span>
     </div>
-
-    {#if tunnelCode}
-      <div class="tunnel-code-display">
-        <span class="tunnel-code-label">Tunnel Code</span>
-        <span class="tunnel-code-value">{tunnelCode}</span>
-      </div>
-    {/if}
 
     {#if nostrStatuses.length > 0}
       <div class="nostr-relay-list">
@@ -216,14 +209,6 @@
     margin-bottom: 0.5rem;
   }
 
-  .nostr-title {
-    color: var(--m3c-on-surface-variant);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
   .nostr-badge {
     font-size: 0.7rem;
     font-weight: 500;
@@ -246,24 +231,11 @@
     color: var(--m3c-on-error-container);
   }
 
-  .tunnel-code-display {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    justify-content: center;
-    margin-bottom: 0.5rem;
-  }
-
-  .tunnel-code-label {
-    color: var(--m3c-on-surface-variant);
-    font-size: 0.7rem;
-  }
-
   .tunnel-code-value {
     font-size: 1rem;
     font-weight: 700;
     color: var(--m3c-primary);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.07em;
   }
 
   .nostr-relay-list {

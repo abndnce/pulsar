@@ -5,8 +5,8 @@ export const NOSTR_RELAYS = [
   "wss://kotukonostr.onrender.com",
 ] as const;
 
-export const SIGNALING_KIND = 28000;
-export const DISCOVERY_KIND = 38000;
+export const SIGNALING_KIND = 24393;
+export const DISCOVERY_KIND = 34393;
 export const D_TAG_ID = "pulsar-tunnel";
 export const DISCOVERY_LIMIT = 20;
 export const SIGNALING_SINCE_GRACE_SECONDS = 5;
@@ -168,16 +168,9 @@ export function makeDiscoveryEvent(pubkey: string): UnsignedNostrEvent {
     pubkey,
     created_at: nowSeconds(),
     kind: DISCOVERY_KIND,
-    tags: [
-      ["d", D_TAG_ID],
-      ["t", "pulsar"],
-      ["t", "pulsar-tunnel"],
-    ],
+    tags: [["d", D_TAG_ID]],
     content: JSON.stringify({
-      name: "Pulsar Tunnel",
-      version: "0.1.0",
-      pubkey,
-      transport: "nostr",
+      tunnel_code: tunnelCodeFromPubkey(pubkey),
     }),
   };
 }
