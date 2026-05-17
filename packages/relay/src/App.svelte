@@ -7,7 +7,6 @@
   let phase = $state<RelayPhase>("idle");
   let detail = $state("");
   let nostrStatuses = $state<NostrConnStatus[]>([]);
-  let eventCount = $state(0);
   let tunnelCode = $state("");
   let lastError = $state("");
 
@@ -15,7 +14,6 @@
     phase = update.phase;
     detail = update.detail;
     nostrStatuses = update.nostrStatuses;
-    eventCount = update.eventCount;
     tunnelCode = update.tunnelCode ?? "";
   });
 
@@ -119,10 +117,6 @@
       {/if}
 
       <div class="info-card">
-        <div class="info-row">
-          <span class="info-label">Events relayed</span>
-          <span class="info-value">{eventCount}</span>
-        </div>
         <div class="info-row">
           <span class="info-label">Status</span>
           <span class="info-value status-detail">{detail || phaseLabel[phase]}</span>

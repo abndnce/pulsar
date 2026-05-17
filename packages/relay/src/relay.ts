@@ -115,7 +115,6 @@ export type RelayUpdate = {
   phase: RelayPhase;
   detail: string;
   nostrStatuses: NostrConnStatus[];
-  eventCount: number;
   tunnelCode?: string;
 };
 
@@ -354,7 +353,7 @@ export class PulsarRelay {
   get detail() { return this._detail; }
   get tunnelCode() { return this._tunnelCode; }
   get nostrStatuses() { return this._nostrStatuses; }
-  get eventCount() { return this.store.size; }
+
 
   setUpdateCallback(cb: (update: RelayUpdate) => void) {
     this.onUpdate = cb;
@@ -371,7 +370,6 @@ export class PulsarRelay {
       phase: this._phase,
       detail: this._detail,
       nostrStatuses: this._nostrStatuses,
-      eventCount: this.store.size,
       tunnelCode: this._tunnelCode,
     });
   }
