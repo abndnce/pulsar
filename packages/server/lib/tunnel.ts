@@ -19,21 +19,22 @@ async function writeAll(conn: Deno.Conn, data: Uint8Array): Promise<void> {
 
 /** TLS Handshake content type as defined by RFC 8446 / RFC 5246. */
 const TLS_HANDSHAKE_CT = 0x16;
+const TLS_MAJOR_VERSION = 0x03;
+const HTTPS_PORT = 443;
 
 /**
  * Bridge a single data channel to a raw TCP socket.
  *
  * Flow:
- *   channel onopen → Deno.connect(hostname, port) →
- *   channel.onmessage → tcp.write (serialised) +
+ *   first TLS-like channel message → Deno.connect(hostname, port) →
+ *   tcp.write (serialised) +
  *   tcp.read → channel.send
  *
  * If the data channel opens before the TCP connection completes, data
  * is buffered in `pendingWrites` and flushed once connected.
  *
- * **Non-TLS traffic is always rejected.** The first byte from the client
- * must be `0x16` (TLS Handshake content type), otherwise the channel
- * is closed immediately.
+ * **Non-HTTPS traffic is always rejected.** Destinations must use port 443,
+ * and the first client message must look like a TLS handshake record.
  *
  * Errors on either side close both the channel and the socket.
  */
@@ -46,6 +47,7 @@ function handleSocketChannel(
   let socket: Deno.Conn | undefined;
   let closed = false;
   let receivedFirstMessage = false;
+  let tcpStarted = false;
   const pendingWrites: Uint8Array[] = [];
   let writeChain = Promise.resolve();
 
@@ -99,6 +101,45 @@ function handleSocketChannel(
     closeChannel();
   };
 
+  const startTcp = () => {
+    if (tcpStarted || closed) return;
+    tcpStarted = true;
+
+    void (async () => {
+      try {
+        socket = await Deno.connect({ hostname, port, transport: 'tcp' });
+        trackSocket?.(socket);
+
+        // Flush any data queued while TCP was connecting
+        for (const chunk of pendingWrites.splice(0)) queueWrite(chunk);
+
+        // Read loop: TCP → data channel
+        const buf = new Uint8Array(16 * 1024);
+        while (!closed) {
+          const read = await socket.read(buf);
+          if (read === null) break;
+          if (read > 0 && channel.readyState === 'open') {
+            channel.send(Buffer.from(buf.subarray(0, read)));
+          }
+        }
+      } catch (e) {
+        if (!closed) {
+          const msg = `[Tunnel] Connection to ${hostname}:${port} failed: ${errMsg(e)}`;
+          console.error(msg);
+          onError?.(new Error(msg));
+        }
+      } finally {
+        closeSocket();
+        closeChannel();
+      }
+    })();
+  };
+
+  if (port !== HTTPS_PORT) {
+    reject('only HTTPS port 443 is allowed');
+    return;
+  }
+
   // ── Data channel events ──
 
   channel.onmessage = (event) => {
@@ -116,10 +157,11 @@ function handleSocketChannel(
       // ── Enforce TLS on the very first client message ──
       if (!receivedFirstMessage) {
         receivedFirstMessage = true;
-        if (bytes.length === 0 || bytes[0] !== TLS_HANDSHAKE_CT) {
-          reject('first byte is not TLS Handshake (0x16)');
+        if (bytes.length < 5 || bytes[0] !== TLS_HANDSHAKE_CT || bytes[1] !== TLS_MAJOR_VERSION) {
+          reject('first message is not a TLS handshake record');
           return;
         }
+        startTcp();
       }
 
       queueWrite(bytes);
@@ -135,36 +177,6 @@ function handleSocketChannel(
   channel.onclose = () => closeSocket();
   channel.onerror = () => closeSocket();
 
-  // ── TCP connection ──
-
-  void (async () => {
-    try {
-      socket = await Deno.connect({ hostname, port, transport: 'tcp' });
-      trackSocket?.(socket);
-
-      // Flush any data queued while TCP was connecting
-      for (const chunk of pendingWrites.splice(0)) queueWrite(chunk);
-
-      // Read loop: TCP → data channel
-      const buf = new Uint8Array(16 * 1024);
-      while (!closed) {
-        const read = await socket.read(buf);
-        if (read === null) break;
-        if (read > 0 && channel.readyState === 'open') {
-          channel.send(Buffer.from(buf.subarray(0, read)));
-        }
-      }
-    } catch (e) {
-      if (!closed) {
-        const msg = `[Tunnel] Connection to ${hostname}:${port} failed: ${errMsg(e)}`;
-        console.error(msg);
-        onError?.(new Error(msg));
-      }
-    } finally {
-      closeSocket();
-      closeChannel();
-    }
-  })();
 }
 
 // ── handleDataChannel ─────────────────────────────────────────────
