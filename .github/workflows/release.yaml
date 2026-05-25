@@ -138,13 +138,3 @@ jobs:
             pulsar-server-mac-arm64 \
             pulsar-server-mac-x64 \
             pulsar-server-windows-x64.exe
-
-      # ── Publish to npm ──────────────────────────────────────────
-
-      - name: Set up npm auth
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-
-      - name: Publish server to npm
-        working-directory: packages/server
-        run: npm publish --provenance 2>&1 || echo "⚠️ npm publish failed (likely version exists — skipping)"
